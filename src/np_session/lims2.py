@@ -23,37 +23,36 @@ import json
 import logging
 import pathlib
 import re
-from typing import Any, Callable, Optional, Type, Union
-import sys
+from typing import Any, Callable, Type, Union
 
 import requests
 
-import np_config
 
-lims_apis = np_config.fetch('/utils')['lims_apis']
 def requester(url: str, *args) -> dict:
-    request = url.format(*args)#.replace(";", "%3B")
+    request = url.format(*args)  # .replace(";", "%3B")
     logging.debug(f"Requesting {request}")
     response = requests.get(request)
     if response.status_code != 200:
         raise ValueError(f"Bad response from {request}: {response.status_code}")
     return response.json()
 
+
 request = lambda url: functools.partial(requester, url)
-donor_info = request('http://lims2/donors/info/details.json?external_donor_name={}')
-user_info = request('http://lims2/users.json?login={}')
-ecephys_info = request('http://lims2/ecephys_sessions.json?id={}')
-behavior_info = request('http://lims2/behavior_sessions.json?id={}')
-isi_info = request('http://lims2/specimens/isi_experiment_details/{}.json')
+donor_info = request("http://lims2/donors/info/details.json?external_donor_name={}")
+user_info = request("http://lims2/users.json?login={}")
+ecephys_info = request("http://lims2/ecephys_sessions.json?id={}")
+behavior_info = request("http://lims2/behavior_sessions.json?id={}")
+isi_info = request("http://lims2/specimens/isi_experiment_details/{}.json")
+
 
 class LIMS2InfoBaseClass(collections.UserDict, abc.ABC):
     "Store details for an object in a dict-like. The commonly-used format of its name, e.g. '366122' for a mouse ID, can be obtained by converting to str()."
 
     np_id: int | str
     "Commonly-used format of the object's value among the neuropixels team e.g. for a mouse -> the labtracks ID (366122)."
-    
+
     _type: Type = NotImplemented
-    _get_info: Callable[[str| int], dict] = NotImplemented
+    _get_info: Callable[[str | int], dict] = NotImplemented
 
     def __init__(self, np_id: str | int):
         self.np_id = self.__class__._type(np_id)
@@ -62,15 +61,16 @@ class LIMS2InfoBaseClass(collections.UserDict, abc.ABC):
     def __getitem__(self, key):
         self.fetch()
         return super().__getitem__(key)
-    
+
     def __str__(self):
         return str(self.np_id)
 
     def __repr__(self):
         return f"{self.__class__.__name__}('{self.np_id}')"
+
     def __bool__(self):
         return True if self.np_id else False
-    
+
     def info_from_lims(self, np_id) -> dict[str, Any]:
         "Return the object's info from lims database or raises a ValueError if not found."
         try:
@@ -79,13 +79,13 @@ class LIMS2InfoBaseClass(collections.UserDict, abc.ABC):
             raise ValueError(
                 f"Could not find {self.__class__.__name__} {np_id} in lims"
             ) from None
-            
+
     def fetch(self):
         "Fetch the object's info from lims once."
         if not self.data:
             info = self.info_from_lims(self.np_id)
             self.data = dict(**info)
-        
+
     def keys(self):
         "Fetch before returning keys."
         self.fetch()
@@ -112,19 +112,18 @@ class LIMS2InfoBaseClass(collections.UserDict, abc.ABC):
 class MouseInfo(LIMS2InfoBaseClass):
     """
     Mouse info from lims stored in a dict, with a string method for the commonly-used format of its name.
-    
+
     >>> mouse = MouseInfo(366122)
-    
+
     >>> str(mouse)
     '366122'
-    
+
     >>> mouse['id']
     657428270
-    
+
     >>> mouse['project_name']
     'NeuropixelPlatformDevelopment'
     """
-    
 
     _type = int
     _get_info = donor_info
@@ -185,7 +184,7 @@ class SessionInfo(LIMS2InfoBaseClass):
     "Store details for an ecephys or behavior session."
 
     _type = int
-    _get_info = ecephys_info # default - behavior_info may be used instead
+    _get_info = ecephys_info  # default - behavior_info may be used instead
 
     def __str__(self):
         return f"{self.np_id}"
@@ -193,53 +192,65 @@ class SessionInfo(LIMS2InfoBaseClass):
     @property
     def lims_id(self) -> int:
         return self.np_id
-    
+
     @property
     def session(self) -> str:
         self.cast()
         return self._session
-        
+
     @property
     def folder(self):
         self.cast()
         return self.get_folder()
-    
+
     def info_from_lims(self, np_id) -> dict:
         try:
-            data = super().info_from_lims(np_id) # with ecephys_info
+            data = super().info_from_lims(np_id)  # with ecephys_info
         except ValueError:
-            response = behavior_info(np_id) # try behavior_info instead
+            response = behavior_info(np_id)  # try behavior_info instead
             if not response:
                 raise
-            self._session = 'behavior'
+            self._session = "behavior"
             data = response[0]
         else:
-            self._session = 'ecephys'
+            self._session = "ecephys"
         self.cast()
         return data
-        
+
     def cast(self):
-        if not hasattr(self, '_session'):
-            _ = self['id'] # trigger fetching data from lims
-        self.__class__ = EcephysSessionInfo if self._session == 'ecephys' else BehaviorSessionInfo
-    
+        if not hasattr(self, "_session"):
+            _ = self["id"]  # trigger fetching data from lims
+        self.__class__ = (
+            EcephysSessionInfo if self._session == "ecephys" else BehaviorSessionInfo
+        )
+
+
 class EcephysSessionInfo(SessionInfo):
     "Don't instantiate directly, use SessionInfo and class will be converted after info fetched from lims."
+
     def get_folder(self) -> str:
         return f"{self.np_id}_{self['specimen']['external_specimen_name']}_{self['name'][:8]}"
+
     def __repr__(self):
         return f"{super().__class__.__name__}({self.np_id!r})"
+
+
 class BehaviorSessionInfo(SessionInfo):
     "Don't instantiate directly, use SessionInfo and class will be converted after info fetched from lims."
+
     def get_folder(self) -> str:
         return f"{self.np_id}_{self['donor']['name'].split('-')[-1]}_{self['ecephys_session']['name'][:8]}"
+
     def __repr__(self):
         return f"{super().__class__.__name__}({self.np_id!r})"
+
 
 # end of classes ----------------------------------------------------------------------- #
 
+
 def generate_ecephys_session(
-    mouse: str | int | MouseInfo, user: str | UserInfo,
+    mouse: str | int | MouseInfo,
+    user: str | UserInfo,
 ) -> SessionInfo:
     "Create a new session and return an object instance with its info."
 
@@ -264,8 +275,8 @@ def generate_ecephys_session(
 
 def find_session_folder_string(path: Union[str, pathlib.Path]) -> str | None:
     """Extract [8+digit session ID]_[6-digit mouse ID]_[6-digit date
-        str] from a file or folder path"""
-    session_reg_exp = R"[0-9]{8,}_[0-9]{6}_[0-9]{8}"
+    str] from a file or folder path"""
+    session_reg_exp = r"[0-9]{8,}_[0-9]{6}_[0-9]{8}"
     session_folders = re.findall(session_reg_exp, str(path))
     if session_folders:
         if not all(s == session_folders[0] for s in session_folders):
@@ -291,7 +302,6 @@ def info_classes_from_session_folder(
     return (session, mouse, user)
 
 
-    
 if __name__ == "__main__":
     mouse = MouseInfo(366122)
     e, *_ = info_classes_from_session_folder("1190094328_611166_20220707")

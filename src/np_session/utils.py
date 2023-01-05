@@ -1,16 +1,15 @@
 from __future__ import annotations
-import datetime
+
 import doctest
 import enum
 import functools
 import logging
 import os
 import pathlib
-import platform
 import re
 import subprocess
 import sys
-from typing import Dict, Optional, Union
+from typing import Optional, Union
 
 import requests
 
@@ -37,7 +36,8 @@ class Host(enum.Enum):
     MTRAIN = "mtrain"
     MINDSCOPE_SERVER = ZK = "eng-mindscope"
     MPE_SERVER = "aibspi"
-    
+
+
 def is_connected(host: str | Host) -> bool:
     "Use OS's `ping` cmd to check if `host` is connected."
     command = ["ping", "-n" if "win" in sys.platform else "-c", "1", host]
@@ -67,7 +67,7 @@ def is_valid_session_id(session_id: int | str) -> bool:
 def lims_session_id(path: PathLike) -> Optional[str]:
     """
     Get valid lims ecephys/behavior session id from str or path.
-    
+
     >>> lims_session_id('//allen/programs/mindscope/production/dynamicrouting/prod0/specimen_1200280254/ecephys_session_1234028213')
     '1234028213'
     """
@@ -82,11 +82,10 @@ def lims_session_id(path: PathLike) -> Optional[str]:
             return i
 
 
-
 def folder(path: PathLike) -> Optional[str]:
     """
     Extract [8+digit lims session ID]_[6-digit labtracks mouse ID]_[6-digit datestr] from a str or path.
-    
+
     >>> folder('//allen/programs/mindscope/workgroups/np-exp/1234028213_640887_20221219/image.png')
     '1234028213_640887_20221219'
     """
@@ -105,40 +104,44 @@ def folder(path: PathLike) -> Optional[str]:
 def folder_from_lims_id(path: PathLike) -> Optional[str]:
     """
     Get the session folder string ([lims-id]_[mouse-id]_[date]) from a string or path containing a possible lims id.
-    
+
     >>> folder_from_lims_id('//allen/programs/mindscope/production/dynamicrouting/prod0/specimen_1200280254/ecephys_session_1234028213')
     '1234028213_640887_20221219'
-    
+
     >>> folder_from_lims_id('1234028213')
     '1234028213_640887_20221219'
     """
-
     session_id = lims_session_id(path)
     if session_id is None:
         return None
     lims_data = lims_data_getter(session_id)
     return ("_").join(
-        [lims_data.lims_id, lims_data.data_dict["external_specimen_name"], lims_data.data_dict["datestring"]]
+        [
+            lims_data.lims_id,
+            lims_data.data_dict["external_specimen_name"],
+            lims_data.data_dict["datestring"],
+        ]
     )
-    
+
+
 def folder_from_lims_id(path: PathLike) -> Optional[str]:
     """
     Get the session folder string ([lims-id]_[mouse-id]_[date]) from a string or path containing a possible lims id.
-    
+
     >>> folder_from_lims_id('//allen/programs/mindscope/production/dynamicrouting/prod0/specimen_1200280254/ecephys_session_1234028213')
     '1234028213_640887_20221219'
-    
+
     >>> folder_from_lims_id('1234028213')
     '1234028213_640887_20221219'
     """
-
     session_id = lims_session_id(path)
     if session_id is None:
         return None
     return SessionInfo(session_id).folder
 
+
 @functools.lru_cache(maxsize=None)
-def lims_json_content(lims_id: int | str) -> Optional[Dict]:
+def lims_json_content(lims_id: int | str) -> Optional[dict]:
     if not is_valid_session_id(lims_id):
         raise ValueError(f"{lims_id} is not a valid lims session id")
     if not is_connected("lims2"):
@@ -150,10 +153,19 @@ def lims_json_content(lims_id: int | str) -> Optional[Dict]:
     logging.warning(f"Could not find json content for lims session id {lims_id}")
     return None
 
-    
+
+def is_new_ephys_folder(path: PathLike) -> bool:
+    "Contains subfolders with raw data from OpenEphys v0.6.0+ (format switched 2022 on NP.0,1,2)"
+    path = pathlib.Path(path)
+    if path.match("_probe*"):
+        return path.match("Record Node*") or path.rglob("Record Node*")
+    return bool(list(path.glob("*_probe*/Record Node*")))
+
+
 if __name__ == "__main__":
-    try:
-        # optionflags=(doctest.ELLIPSIS, doctest.NORMALIZE_WHITESPACE, doctest.IGNORE_EXCEPTION_DETAIL)
+
+    if is_connected("lims2"):
         doctest.testmod()
-    except ConnectionError:
-        print("not on-site - skipping doctests")
+        # optionflags=(doctest.ELLIPSIS, doctest.NORMALIZE_WHITESPACE, doctest.IGNORE_EXCEPTION_DETAIL)
+    else:
+        print("LIMS not connected - skipping doctests")

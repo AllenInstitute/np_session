@@ -28,7 +28,13 @@ class MTrain:
 
     def session(self):
         session = requests.session()
-        session.post(self.server, data={"username": "chrism", "password": "password",})
+        session.post(
+            self.server,
+            data={
+                "username": "chrism",
+                "password": "password",
+            },
+        )
         return session
 
     @property
@@ -56,10 +62,10 @@ class MTrain:
 
     @state.setter
     def state(self, value: Union[dict, int, str]):
-        """Allows switching to one of the states in the current regimen. 
-        
+        """Allows switching to one of the states in the current regimen.
+
         To change regimen, use set_regimen_and_stage()
-        
+
         Requires a state dict, state id (str/int) or stage name (str)
         """
         valid_dict = valid_id = None
@@ -103,7 +109,9 @@ class MTrain:
         with self.session() as s:
             s.post(
                 f"{self.server}/set_state/{self.mouse_id}",
-                data={"state": json.dumps(value),},
+                data={
+                    "state": json.dumps(value),
+                },
             )
         assert self.state == value, "set state failed!"
 
@@ -226,7 +234,9 @@ class MTrain:
         with self.session() as s:
             s.post(
                 f"{self.server}/set_state/{self.mouse_id}",
-                data={"state": json.dumps(new_state),},
+                data={
+                    "state": json.dumps(new_state),
+                },
             )
         assert self.state == new_state, "set regimen and stage failed!"
 

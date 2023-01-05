@@ -13,8 +13,8 @@ charset-normalizer==2.1.1
 idna==3.4
     # via requests
 kazoo==2.8.0
-    # via np-config
-np-config==0.2.2
+    # via np-config`
+np-config>=0.2.2
     # via np-session (pyproject.toml)
 psycopg2==2.9.5
     # via np-session (pyproject.toml)

@@ -23,7 +23,8 @@ if __name__ == "__main__":
     ...
 else:
     ...
-    
+
+
 class NoBehaviorSessionError(Exception):
     pass
 
@@ -185,7 +186,7 @@ def get_psql_cursor():
 
 # functions from Corbett --------------------------------------------------------------- #
 class data_getter:
-    """ parent class for data getter, should be able to 
+    """parent class for data getter, should be able to
     1) connect to data source
     2) grab experiment data
     3) grab probe data
@@ -200,7 +201,7 @@ class data_getter:
         self.get_probe_data()
         self.get_image_data()
         self.data_dict_pathlib = convert_path_str_to_pathlib(self.data_dict)
-        
+
     def connect(self):
         pass
 
@@ -226,15 +227,18 @@ class lims_data_getter(data_getter):
             port=5432,
         )
         self.con.set_session(
-            readonly=True, autocommit=True,
+            readonly=True,
+            autocommit=True,
         )
-        self.cursor = self.con.cursor(cursor_factory=psycopg2.extras.RealDictCursor,)
+        self.cursor = self.con.cursor(
+            cursor_factory=psycopg2.extras.RealDictCursor,
+        )
 
         self.lims_id = exp_id
 
     def get_exp_data(self):
-        """ Get all the experiment files
-            eg sync, pkls, videos etc
+        """Get all the experiment files
+        eg sync, pkls, videos etc
         """
         WKF_QRY = """
             SELECT es.id AS es_id, 
@@ -295,8 +299,7 @@ class lims_data_getter(data_getter):
         self.data_dict["es_id"] = str(self.data_dict["es_id"])
 
     def get_image_data(self):
-        """Get all the images associated with this experiment 
-        """
+        """Get all the images associated with this experiment"""
 
         IMAGE_QRY = """
             SELECT es.id AS es_id, es.name AS es, imt.name AS image_type, es.storage_directory || im.jp2 AS image_path
@@ -321,11 +324,11 @@ class lims_data_getter(data_getter):
             self.data_dict[name] = path
 
     def get_probe_data(self):
-        """ Get sorted ephys data for each probe 
-        
+        """Get sorted ephys data for each probe
+
         TODO: make this actually use the well known file types,
         rather than just grabbing the base directories
-        
+
         """
 
         WKF_PROBE_QRY = """
@@ -387,7 +390,7 @@ class lims_data_getter(data_getter):
         self.probe_data = probe_data
 
     def storage_directory(self) -> Optional[str]:
-        """ Get the storage directory for this experiment"""
+        """Get the storage directory for this experiment"""
         if self.data_dict:
             return "/" + self.data_dict["storage_directory"]
         WKF_QRY = """
@@ -566,12 +569,13 @@ def convert_lims_path(path):
 
     return new_path
 
+
 def convert_path_str_to_pathlib(data_dict_orig) -> dict:
     data_dict = data_dict_orig.copy()
-    for k,v in  data_dict.items():
-        if isinstance(v, str) and (v.startswith('/') or v.startswith('\\')):
-            v.replace('\\\\', '/')
-            if v[:2] != '//':
-                v = '/' + v
+    for k, v in data_dict.items():
+        if isinstance(v, str) and (v.startswith("/") or v.startswith("\\")):
+            v.replace("\\\\", "/")
+            if v[:2] != "//":
+                v = "/" + v
             data_dict[k] = pathlib.Path(v)
     return data_dict
