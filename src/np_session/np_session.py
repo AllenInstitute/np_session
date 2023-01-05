@@ -1,145 +1,216 @@
+from __future__ import annotations
+
+import datetime
+import doctest
+import functools
+import logging
+import os
+import pathlib
+import platform
+import re
+import subprocess
+import sys
+from typing import Any, Optional, Type, Union
+
+from backports.cached_property import cached_property
+
+if __name__ == "__main__":
+    import data_getters as dg
+    import lims2
+    import mtrain
+    from paths import *
+    from utils import *
+else:
+    from . import data_getters as dg
+    from . import lims2, mtrain
+    from .paths import *
+    from .utils import *
+    
+PathLike = Union[str , bytes , os.PathLike , pathlib.Path]
+# https://peps.python.org/pep-0519/#provide-specific-type-hinting-support
+# PathLike inputs are converted to pathlib.Path objects for os-agnostic filesystem operations.
+# os.fsdecode(path: PathLike) is used where only a string is required.
+
+
+class SessionError(ValueError):
+    """Raised when a session folder string ([lims-id]_[mouse-id]_[date]) can't be found in a
+    filepath"""
+
+    pass
+
+
+class FilepathIsDirError(ValueError):
+    """Raised when a directory is specified but a filepath is required"""
+
+    pass
+
+
 class Session:
-    """Get session information from any string: filename, path, or foldername"""
+    """Session information from any string or PathLike containing a lims session ID.
+    
+    Note: lims/mtrain properties may be empty or None if mouse/session isn't in db.
+    
+    Quick access to useful properties:
+    >>> session = Session('c:/1116941914_surface-image1-left.png')
+    >>> session.id
+    '1116941914'
+    >>> session.folder
+    '1116941914_576323_20210721'
+    >>> session.project
+    'BrainTV Neuropixels Visual Behavior'
+    >>> session.is_ecephys_session
+    True
+    
+    Some properties are returned as objects with richer information: 
+    - `pathlib` objects for filesystem paths: 
+    >>> session.lims_path.as_posix()
+    '//allen/programs/braintv/production/visualbehavior/prod0/specimen_1098595957/ecephys_session_1116941914'
+    
+    - `datetime` objects for easy date manipulation:
+    >>> session.date
+    datetime.date(2021, 7, 21)
+    
+    - dictionaries from lims (loaded lazily):
+    >>> session.mouse['id']
+    1098595953
+    >>> session.mouse['full_genotype']
+    'wt/wt'
+    
+    ...with a useful string representation:
+    >>> str(session.mouse)
+    '576323'
 
-    # use staticmethods with any path/string, without instantiating the class:
-    #
-    #  Session.mouse(
-    #  "c:/1234566789_611166_20220708_surface-image1-left.png"
-    #   )
-    #  >>> "611166"
-    #
-    # or instantiate the class and reuse the same session:
-    #   session = Session(
-    #  "c:/1234566789_611166_20220708_surface-image1-left.png"
-    #   )
-    #   session.id
-    #   >>> "1234566789"
-    id = None
-    mouse = None
-    date = None
+    """
 
-    NPEXP_ROOT = pathlib.Path(r"//allen/programs/mindscope/workgroups/np-exp")
+    def __init__(self, path: PathLike):
 
-    def __init__(self, path: str | pathlib.Path):
-        if not isinstance(path, (str, pathlib.Path)):
-            raise TypeError(
-                f"{self.__class__.__name__} path must be a string or pathlib.Path object"
-            )
+        path = pathlib.Path(path)
 
-        self.folder = self.__class__.folder(path)
-        # TODO maybe not do this - could be set to class without realizing - just assign for instances
+        self.folder = folder(path)
 
-        if self.folder:
-            # extract the constituent parts of the session folder
-            self.id = self.folder.split("_")[0]
-            self.mouse = self.folder.split("_")[1]
-            self.date = self.folder.split("_")[2]
-        elif "production" and "prod0" in str(path):
-            self.id = re.search(r"(?<=_session_)\d+", str(path)).group(0)
-            lims_dg = dg.lims_data_getter(self.id)
-            self.mouse = lims_dg.data_dict["external_specimen_name"]
-            self.date = lims_dg.data_dict["datestring"]
-            self.folder = ("_").join([self.id, self.mouse, self.date])
-        else:
+        if not self.folder and is_lims_path(path):
+            self.folder = folder_from_lims_id(path)
+
+        if self.folder is None:
             raise SessionError(f"{path} does not contain a valid session folder string")
 
-    @classmethod
-    def folder(cls, path: Union[str, pathlib.Path]) -> Union[str, None]:
-        """Extract [8+digit session ID]_[6-digit mouse ID]_[6-digit date
-        str] from a file or folder path"""
-        session_reg_exp = r"[0-9]{8,}_[0-9]{6}_[0-9]{8}"
-
-        session_folders = re.findall(session_reg_exp, str(path))
-        if session_folders:
-            if not all(s == session_folders[0] for s in session_folders):
-                logging.debug(
-                    f"{cls.__class__.__name__} Mismatch between session folder strings - file may be in the wrong folder: {path}"
-                )
-            return session_folders[0]
-        else:
-            return None
+        self.id = self.folder.split("_")[0]
 
     @property
-    def npexp_path(self) -> Union[pathlib.Path, None]:
-        """get session folder from path/str and combine with npexp root to get folder path on npexp"""
-        folder = self.folder
-        if not folder:
-            return None
-        return self.NPEXP_ROOT / folder
+    def lims(self) -> dict[str, Any]:
+        """
+        >>> info = Session('1116941914').lims
+        >>> info['stimulus_name']
+        'EPHYS_1_images_H_3uL_reward'
+        >>> info['operator']['login']
+        'taminar'
 
-    @property
-    def lims_path(self) -> Union[pathlib.Path, None]:
-        """get lims id from path/str and lookup the corresponding directory in lims"""
-        if not (self.folder or self.id):
-            return None
-        if not hasattr(self, "_lims_path"):
+        >>> Session('1116941914').lims
+        SessionInfo('1116941914')
+        >>> str(Session('1116941914').lims)
+        '1116941914'
+        
+        """
+        if not hasattr(self, '_lims'):
             try:
-                lims_dg = dg.lims_data_getter(self.id)
-                WKF_QRY = """
-                            SELECT es.storage_directory
-                            FROM ecephys_sessions es
-                            WHERE es.id = {}
-                            """
-                lims_dg.cursor.execute(WKF_QRY.format(lims_dg.lims_id))
-                exp_data = lims_dg.cursor.fetchall()
-                if exp_data and exp_data[0]["storage_directory"]:
-                    self._lims_path = pathlib.Path(
-                        "/" + exp_data[0]["storage_directory"]
-                    )
-                else:
-                    logging.debug(
-                        "lims checked successfully, but no folder uploaded for {}".format(
-                            self.id
-                        )
-                    )
-                    self._lims_path = None
-            except Exception as e:
-                logging.info(
-                    "Checking for lims folder failed for {}: {}".format(self.id, e)
+                self._lims = lims2.SessionInfo(self.id)
+            except ValueError:
+                self._lims = {}
+        return self._lims
+    
+    @property
+    def mouse(self) -> str | dict[str, Any]:
+        if not hasattr(self, '_mouse'):
+            try:
+                self._mouse = lims2.MouseInfo(self.folder.split("_")[1])
+            except ValueError:
+                self._mouse = {}
+        return self._mouse
+    
+    @cached_property
+    def date(self) -> Union[str, datetime.date]:
+        d = self.folder.split("_")[2]
+        date = datetime.date(year=int(d[:4]), month=int(d[4:6]), day=int(d[6:])) 
+        return date
+    
+    @property
+    def is_ecephys_session(self) -> Optional[bool]:
+        """False if behavior session, None if unsure."""
+        if not self.lims:
+            return None
+        return "ecephys_session" in self.lims.get("storage_directory", "")
+    
+    @property
+    def npexp_path(self) -> pathlib.Path:
+        """get session folder from path/str and combine with npexp root to get folder path on npexp"""
+        return NPEXP_ROOT / self.folder
+
+    @property
+    def lims_path(self) -> Optional[pathlib.Path]:
+        """get lims id from path/str and lookup the corresponding directory in lims"""
+        if not hasattr(self, "_lims_path"):
+            path: str = self.lims.get("storage_directory", "")
+            if not path:
+                logging.debug(
+                    "lims checked successfully, but no folder uploaded for ", self.id
                 )
                 self._lims_path = None
+            else:
+                self._lims_path = pathlib.Path("/" + path)
         return self._lims_path
     
     @property
-    def lims_session_json(self) -> dict:
-        """Content from lims on ecephys_session
-        
-        This property getter just prevents repeat calls to lims
-        """
-        if not hasattr(self, '_lims_session_json'):
-            self._lims_session_json = self.get_lims_content()
-        return self._lims_session_json
-    
-    def get_lims_content(self) -> dict:
-        response = requests.get(f"http://lims2/behavior_sessions/{self.id}.json?")
-        if response.status_code == 404:
-            response = requests.get(f"http://lims2/ecephys_sessions/{self.id}.json?")
-            if response.status_code == 404:
-                return None
-        elif response.status_code != 200:
-            raise requests.RequestException(f"Could not find content for session {self.id} in LIMS")
-        
-        return response.json()
-        
+    def project(self) -> Optional[str]:
+        return self.lims.get("project", {}).get("name", None)
+
+    @cached_property
+    def lims_data_getter(self) -> Optional[dg.lims_data_getter]:
+        try:
+            return dg.lims_data_getter(self.id)
+        except ConnectionError:
+            logging.debug("Connection to lims failed", exc_info=True)
+            return None
+        except:
+            raise
+
     @property
-    def project(self) -> str:
-        if self.lims_session_json:
-            return self.lims_session_json['project']['code']
-        return None
+    def data_dict(self) -> Optional[dict]:
+        if not hasattr(self, "_data_dict"):
+            data_getter = self.lims_data_getter
+            if not data_getter:
+                self.data_dict = None
+            else:
+                self._data_dict_orig = data_getter.data_dict # str paths
+                self._data_dict = data_getter.data_dict_pathlib # pathlib paths
+        return self._data_dict
+
+    @property
+    def mtrain(self) -> Optional[dict]:
+        """Info from MTrain on the last behavior session for the mouse on the experiment day"""
+        if not hasattr(self, '_mtrain'):
+            if not is_connected("mtrain"):
+                return None
+            try:
+                self.mouse.mtrain = mtrain.MTrain(self.mouse)
+            except mtrain.MouseNotInMTrainError:
+                self._mtrain = None
+            except:
+                raise
+            else:
+                self._mtrain = self.mouse.mtrain.last_behavior_session_on(
+                   self.date
+                )
+        return self._mtrain
+
 
 class SessionFile:
     """Represents a single file belonging to a neuropixels ecephys session"""
 
     session = None
 
-    def __init__(self, path: Union[str, pathlib.Path]):
+    def __init__(self, path: PathLike):
         """from the complete file path we can extract some information upon
         initialization"""
-
-        if not isinstance(path, (str, pathlib.Path)):
-            raise TypeError(
-                f"{self.__class__.__name__}: path must be a str or pathlib.Path pointing to a file: {type(path)}"
-            )
 
         path = pathlib.Path(path)
 
@@ -198,7 +269,7 @@ class SessionFile:
         return pathlib.Path(str(self.path).split(str(parts[0]))[0])
 
     @property
-    def session_folder_path(self) -> Union[str, None]:
+    def session_folder_path(self) -> Optional[str]:
         """path to the session folder, if it exists"""
 
         # if a repository (eg npexp) contains session folders, the following location should exist:
@@ -254,9 +325,7 @@ class SessionFile:
         # if a file lives in a probe folder (_probeA, or _probeABC) it may have the same name, size (and even checksum) as
         # another file in a corresponding folder (_probeB, or _probeDEF) - the data are identical if all the above
         # match, but it would still be preferable to keep track of these files separately -> this property indicates
-        probe = re.search(
-            r"(?<=_probe)_?(([A-F]+)|([0-5]{1}))", self.path.parent.as_posix()
-        )
+        probe = RE_PROBES.search(self.path.parent.as_posix())
         if probe:
             probe_name = probe[0]
             # only possibile probe_names here are [A-F](any combination) or [0-5](single digit)
@@ -290,7 +359,7 @@ class SessionFile:
         """
         # for symmetry with other paths/backups add the 'cached' property, tho it's not
         # necessary
-        self._npexp_path = self.session.NPEXP_ROOT / self.session_relative_path
+        self._npexp_path = NPEXP_ROOT / self.session_relative_path
         return self._npexp_path
 
     @property
@@ -315,7 +384,7 @@ class SessionFile:
         if not hasattr(self, "_lims_path"):
             self._lims_path = self.get_lims_path()
         return self._lims_path
-    
+
     @property
     def lims_backup(self) -> pathlib.Path:
         """Actual path to backup on LIMS if it currently exists"""
@@ -342,7 +411,7 @@ class SessionFile:
         matches = [
             m.as_posix() for m in self.session.lims_path.glob(pattern)
         ]  # convert to strings for sorting
-        if not matches: # try searching one subfolder deeper
+        if not matches:  # try searching one subfolder deeper
             pattern = "*/" + pattern
         matches = [
             m.as_posix() for m in self.session.lims_path.glob(pattern)
@@ -352,7 +421,7 @@ class SessionFile:
         if not matches:
             return None
         return pathlib.Path(sorted(matches)[-1])
-    
+
     @property
     def z_drive_path(self) -> pathlib.Path:
         """Expected path to a copy on 'z' drive, regardless of whether or not it exists.
@@ -362,7 +431,7 @@ class SessionFile:
         if not hasattr(self, "_z_drive_path"):
             self._z_drive_path = self.get_z_drive_path()
         return self._z_drive_path
-    
+
     @property
     def z_drive_backup(self) -> pathlib.Path:
         """Path to backup on 'z' drive if it currently exists, also considering the
@@ -420,4 +489,13 @@ class SessionFile:
     @property
     def incoming_path(self) -> pathlib.Path:
         """Path to file in incoming folder (may not exist)"""
-        return INCOMING_PATH / self.relative_path
+        return INCOMING_ROOT / self.relative_path
+
+
+if __name__ == "__main__":
+
+    if is_connected('lims2'):
+        doctest.testmod()
+        # optionflags=(doctest.ELLIPSIS, doctest.NORMALIZE_WHITESPACE, doctest.IGNORE_EXCEPTION_DETAIL)
+    else:
+        print("LIMS not connected - skipping doctests")

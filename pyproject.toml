@@ -1,15 +1,43 @@
 [tool.poetry]
-name = "np_session"
+name = "np-session"
 version = "0.1.0"
 description = ""
 authors = ["bjhardcastle <ben.hardcastle@alleninstitute.org>"]
+readme = "README.md"
+packages = [{include = "np_session", from = "src"}]
 
 [tool.poetry.dependencies]
-python = "^3.6"
+python = "^3.7.0"
+psycopg2 = "^2.9.5"
+requests = "*"
+np_config = "*"
+"backports.cached-property" = "*"
 
-[tool.poetry.dev-dependencies]
-pytest = "^5.2"
+[tool.poetry.group.dev.dependencies]
+pytest = ">5.0"
+black = "*"
+mypy = "*"
+isort = "*"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",
+    "--doctest-modules",
+    # "--pdb",
+    # "--pdbcls=IPython.terminal.debugger:TerminalPdb",
+]
+
+doctest_optionflags = [
+    "NORMALIZE_WHITESPACE",
+    "IGNORE_EXCEPTION_DETAIL",
+    "ELLIPSIS",
+]
+
+testpaths = [
+    "tests",
+    "src",
+]
