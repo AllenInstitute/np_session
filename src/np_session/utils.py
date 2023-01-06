@@ -9,7 +9,7 @@ import pathlib
 import re
 import subprocess
 import sys
-from typing import Optional, Union
+from typing import Union
 
 import requests
 
@@ -60,11 +60,17 @@ def is_valid_session_id(session_id: int | str) -> bool:
     """
     >>> is_valid_session_id('1234028213')
     True
+    >>> is_valid_session_id('abcdefg')
+    False
     """
-    return bool(lims_data_getter(str(session_id)).data_dict)
+    try:
+        session = lims_data_getter(str(session_id))
+    except:
+        return False
+    return bool(session.data_dict) if hasattr(session, "data_dict") else False
 
 
-def lims_session_id(path: PathLike) -> Optional[str]:
+def lims_session_id(path: PathLike) -> str | None:
     """
     Get valid lims ecephys/behavior session id from str or path.
 
@@ -82,7 +88,7 @@ def lims_session_id(path: PathLike) -> Optional[str]:
             return i
 
 
-def folder(path: PathLike) -> Optional[str]:
+def folder(path: PathLike) -> str | None:
     """
     Extract [8+digit lims session ID]_[6-digit labtracks mouse ID]_[6-digit datestr] from a str or path.
 
@@ -96,12 +102,12 @@ def folder(path: PathLike) -> Optional[str]:
         return folder_from_lims_id(path)
     if not all(s == session_folders[0] for s in session_folders):
         logging.warning(
-            f"Mismatch between session folder strings - file may be in the wrong folder: {path}"
+            f"Mismatch between session folder strings - file may be in the wrong folder: {path!r}"
         )
     return session_folders[0]
 
 
-def folder_from_lims_id(path: PathLike) -> Optional[str]:
+def folder_from_lims_id(path: PathLike) -> str | None:
     """
     Get the session folder string ([lims-id]_[mouse-id]_[date]) from a string or path containing a possible lims id.
 
@@ -124,7 +130,7 @@ def folder_from_lims_id(path: PathLike) -> Optional[str]:
     )
 
 
-def folder_from_lims_id(path: PathLike) -> Optional[str]:
+def folder_from_lims_id(path: PathLike) -> str | None:
     """
     Get the session folder string ([lims-id]_[mouse-id]_[date]) from a string or path containing a possible lims id.
 
@@ -141,7 +147,7 @@ def folder_from_lims_id(path: PathLike) -> Optional[str]:
 
 
 @functools.lru_cache(maxsize=None)
-def lims_json_content(lims_id: int | str) -> Optional[dict]:
+def lims_json_content(lims_id: int | str) -> dict | None:
     if not is_valid_session_id(lims_id):
         raise ValueError(f"{lims_id} is not a valid lims session id")
     if not is_connected("lims2"):

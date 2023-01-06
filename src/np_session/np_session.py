@@ -5,7 +5,7 @@ import doctest
 import logging
 import os
 import pathlib
-from typing import Any, Generator, Optional, Union
+from typing import Any, Generator, Union
 
 from typing_extensions import Literal
 from backports.cached_property import cached_property
@@ -15,7 +15,7 @@ if __name__ == "__main__":
     from projects import *
     from utils import *
 
-    import lims2
+    import lims2 as lims
     import mtrain
 
     import data_getters as dg
@@ -24,7 +24,7 @@ else:
     from .projects import *
     from .utils import *
 
-    from . import lims2
+    from . import lims2 as lims
     from . import mtrain
 
     from . import data_getters as dg
@@ -89,14 +89,15 @@ class Session:
 
         path = pathlib.Path(path)
 
-        self.folder = folder(path)
+        np_folder = folder(path)
 
-        if not self.folder and is_lims_path(path):
-            self.folder = folder_from_lims_id(path)
+        if not np_folder:
+            np_folder = folder_from_lims_id(path)
 
-        if self.folder is None:
-            raise SessionError(f"{path} does not contain a valid session folder string")
+        if np_folder is None:
+            raise SessionError(f"{path} does not contain a valid lims session id or session folder string")
 
+        self.folder = np_folder
         self.id = self.folder.split("_")[0]
 
     @property
@@ -116,7 +117,7 @@ class Session:
         """
         if not hasattr(self, "_lims"):
             try:
-                self._lims = lims2.SessionInfo(self.id)
+                self._lims = lims.SessionInfo(self.id)
             except ValueError:
                 self._lims = {}
         return self._lims
@@ -125,7 +126,7 @@ class Session:
     def mouse(self) -> str | dict[str, Any]:
         if not hasattr(self, "_mouse"):
             try:
-                self._mouse = lims2.MouseInfo(self.folder.split("_")[1])
+                self._mouse = lims.MouseInfo(self.folder.split("_")[1])
             except ValueError:
                 self._mouse = {}
         return self._mouse
@@ -137,7 +138,7 @@ class Session:
         return date
 
     @property
-    def is_ecephys_session(self) -> Optional[bool]:
+    def is_ecephys_session(self) -> bool | None:
         """False if behavior session, None if unsure."""
         if not self.lims:
             return None
@@ -149,7 +150,7 @@ class Session:
         return NPEXP_ROOT / self.folder
 
     @property
-    def lims_path(self) -> Optional[pathlib.Path]:
+    def lims_path(self) -> pathlib.Path | None:
         """get lims id from path/str and lookup the corresponding directory in lims"""
         if not hasattr(self, "_lims_path"):
             path: str = self.lims.get("storage_directory", "")
@@ -163,11 +164,21 @@ class Session:
         return self._lims_path
 
     @property
-    def project(self) -> Optional[str]:
+    def qc_path(self) -> pathlib.Path:
+        "Expected default path, or alternative if one exists"
+        return self.qc_paths[0] if self.qc_paths else QC_PATHS[0] / self.folder
+    
+    @cached_property
+    def qc_paths(self) -> list[pathlib.Path]:
+        "Any QC folders that exist"
+        return [path / self.folder for path in QC_PATHS if (path / self.folder).exists()]    
+    
+    @property
+    def project(self) -> str | None:
         return self.lims.get("project", {}).get("name", None)
 
     @cached_property
-    def lims_data_getter(self) -> Optional[dg.lims_data_getter]:
+    def lims_data_getter(self) -> dg.dat | None:
         try:
             return dg.lims_data_getter(self.id)
         except ConnectionError:
@@ -177,7 +188,7 @@ class Session:
             raise
 
     @property
-    def data_dict(self) -> Optional[dict]:
+    def data_dict(self) -> dict | None:
         if not hasattr(self, "_data_dict"):
             data_getter = self.lims_data_getter
             if not data_getter:
@@ -188,7 +199,7 @@ class Session:
         return self._data_dict
 
     @property
-    def mtrain(self) -> Optional[dict]:
+    def mtrain(self) -> dict | None:
         """Info from MTrain on the last behavior session for the mouse on the experiment day"""
         if not hasattr(self, "_mtrain"):
             if not is_connected("mtrain"):

@@ -4,20 +4,16 @@ Created on Tue Jun  9 14:33:49 2020
 
 @author: svc_ccg
 """
+from __future__ import annotations
 
 import datetime
-import enum
 import glob
 import json
 import os
 import pathlib
-import subprocess
-import sys  # , shutil
-from typing import Optional, Union
 
 import psycopg2
 import psycopg2.extras
-
 
 if __name__ == "__main__":
     ...
@@ -34,7 +30,7 @@ class MultipleBehaviorSessionsError(Exception):
 
 
 def get_foraging_id_from_behavior_session(
-    mouse_id: Union[int, str], start: datetime.datetime, end: datetime.datetime
+    mouse_id: int | str, start: datetime.datetime, end: datetime.datetime
 ) -> str:
     fmt = "%Y-%m-%d %H:%M"
     query = f"""
@@ -389,7 +385,7 @@ class lims_data_getter(data_getter):
 
         self.probe_data = probe_data
 
-    def storage_directory(self) -> Optional[str]:
+    def storage_directory(self) -> str | None:
         """Get the storage directory for this experiment"""
         if self.data_dict:
             return "/" + self.data_dict["storage_directory"]
@@ -571,11 +567,28 @@ def convert_lims_path(path):
 
 
 def convert_path_str_to_pathlib(data_dict_orig) -> dict:
+    """
+    >>> orig = {0: '\\\\allen\\programs\\mindscope'}
+    >>> test = convert_path_str_to_pathlib(orig)
+    >>> test[0].as_posix()
+    '//allen/programs/mindscope'
+    
+    >>> test[0] != orig[0]
+    True
+    
+    >>> test = convert_path_str_to_pathlib({1: '/allen/programs/mindscope'})
+    >>> test[1].as_posix()
+    '//allen/programs/mindscope'
+    """
     data_dict = data_dict_orig.copy()
     for k, v in data_dict.items():
         if isinstance(v, str) and (v.startswith("/") or v.startswith("\\")):
-            v.replace("\\\\", "/")
+            v.replace("\\", "/")
             if v[:2] != "//":
                 v = "/" + v
             data_dict[k] = pathlib.Path(v)
     return data_dict
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()

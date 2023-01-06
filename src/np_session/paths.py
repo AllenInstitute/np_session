@@ -28,3 +28,4 @@ QC_PATHS = (
     pathlib.Path("//allen/programs/mindscope/workgroups/openscope/GLO_QC"),
     pathlib.Path("//allen/programs/mindscope/workgroups/openscope/Illusion_QC"),
 )
+"Item 0 is used as default - currently Corbett's folder."
