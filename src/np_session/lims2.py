@@ -144,7 +144,7 @@ class MouseInfo(LIMS2InfoBaseClass):
         return self._isi_info
 
     @property
-    def isi_id(self) -> int:
+    def isi_id(self) -> int | None:
         "ID of the mouse's most recent ISI experiment not marked `failed`."
         exps: list = self.isi_info["isi_experiments"]
         exps.sort(key=lambda x: x["id"], reverse=True)
@@ -164,9 +164,9 @@ class MouseInfo(LIMS2InfoBaseClass):
         return self["specimens"][0]["project"]["code"]
 
     @property
-    def lims_dir(self) -> pathlib.Path:
-        "Allen network dir where the mouse's data is stored."
-        return self["specimens"][0]["storage_directory"]
+    def path(self) -> pathlib.Path:
+        "Allen network dir where the mouse's sessions are stored."
+        return pathlib.Path(self["specimens"][0]["storage_directory"])
 
 
 class UserInfo(LIMS2InfoBaseClass):
@@ -232,7 +232,7 @@ class EcephysSessionInfo(SessionInfo):
         return f"{self.np_id}_{self['specimen']['external_specimen_name']}_{self['name'][:8]}"
 
     def __repr__(self):
-        return f"{super().__class__.__name__}({self.np_id!r})"
+        return f"{__class__.__bases__[0].__name__}({self.np_id!r})"
 
 
 class BehaviorSessionInfo(SessionInfo):
@@ -242,7 +242,7 @@ class BehaviorSessionInfo(SessionInfo):
         return f"{self.np_id}_{self['donor']['name'].split('-')[-1]}_{self['ecephys_session']['name'][:8]}"
 
     def __repr__(self):
-        return f"{super().__class__.__name__}({self.np_id!r})"
+        return f"{__class__.__bases__[0].__name__}({self.np_id!r})"
 
 
 # end of classes ----------------------------------------------------------------------- #
@@ -270,7 +270,10 @@ def generate_ecephys_session(
     url = "http://lims2/observatory/ecephys_session/create"
     response = requests.post(url, json=request_json)
     decoded_dict = json.loads(response.content.decode("utf-8"))
-    return SessionInfo(decoded_dict["id"])
+    new_session_id = decoded_dict["id"]
+    if not new_session_id:
+        raise ValueError(f"Failed to create session: {decoded_dict}")
+    return SessionInfo(new_session_id)
 
 
 def find_session_folder_string(path: Union[str, pathlib.Path]) -> str | None:
