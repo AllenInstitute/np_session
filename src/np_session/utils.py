@@ -3,27 +3,30 @@ from __future__ import annotations
 import doctest
 import enum
 import functools
+import json
 import logging
 import os
 import pathlib
 import re
 import subprocess
 import sys
-from typing import Union
+from typing import Union, Literal
 
 import requests
 
 if __name__ == "__main__":
     from data_getters import lims_data_getter
     from lims2 import SessionInfo
+    import paths
 else:
     from .data_getters import lims_data_getter
     from .lims2 import SessionInfo
+    from . import paths 
 
 
 PathLike = Union[str, bytes, os.PathLike, pathlib.Path]
 # https://peps.python.org/pep-0519/#provide-specific-type-hinting-support
-# PathLike inputs are converted to pathlib.Path objects for os-agnosticfilesystem operations
+# PathLike inputs are converted to pathlib.Path objects for os-agnostic filesystem operations
 # os.fsdecode(path: PathLike) is used where only a string is required
 
 RE_SESSION_ID = re.compile("[0-9]{8,}")
@@ -166,6 +169,27 @@ def is_new_ephys_folder(path: PathLike) -> bool:
     if path.match("_probe*"):
         return path.match("Record Node*") or path.rglob("Record Node*")
     return bool(list(path.glob("*_probe*/Record Node*")))
+
+
+def files_manifest(
+        project_name: str,
+        session_str: str = '',
+        session_type: Literal['D1', 'D2', 'habituation'] = 'D1',
+    ) -> dict[str, dict[str,str]]:
+    """Return a list of files that could be entered directly into a platform json `files` key.
+    - project_name: corresponds to a manifet template 
+    - session_str: [lims_id]_[mouse_id]_[session_id], will replace a placeholder in a manifest template
+    """
+    if session_type not in ['D1', 'habituation', 'D2']:
+        raise ValueError(f'{session_type} is not a valid session type')
+    
+    template = paths.TEMPLATES_ROOT / session_type / f"{project_name}.json"
+    
+    x = json.loads(template.read_bytes())
+    # convert dict to str
+    # replace % with session string
+    # switch ' and " so we can convert str back to dict with json.loads()
+    return json.loads(str(x).replace('%', str(session_str)).replace('\'','"'))
 
 
 if __name__ == "__main__":
