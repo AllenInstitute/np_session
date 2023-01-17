@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "np-session"
-version = "0.0.5"
+version = "0.0.6"
 description = "Tools for managing files and metadata associated with ecephys and behavior sessions for the Mindscope Neuropixels team."
 authors = ["Ben Hardcastle <ben.hardcastle@alleninstitute.org>"]
 readme = "README.md"
@@ -12,14 +12,12 @@ typing-extensions = "*"
 psycopg2 = "^2.9.5"
 requests = "*"
 np_config = "*"
-"backports.cached-property" = "*"
-
-[tool.poetry.group.dev.dependencies]
-pip-tools = "*"
-isort = "*"
-mypy = "*"
-black = "*"
-pytest = ">5.0"
+pip-tools = {version = "*", optional = true}
+isort = {version = "*", optional = true}
+mypy = {version = "*", optional = true}
+black = {version = "*", optional = true}
+pytest = {version = "*", optional = true}
+poetry = {version = "*", optional = true}
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

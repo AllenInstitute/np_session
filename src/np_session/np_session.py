@@ -2,17 +2,17 @@ from __future__ import annotations
 
 import datetime
 import doctest
+import functools
 import logging
 import os
 import pathlib
 from typing import Any, Generator, Union
 
 from typing_extensions import Literal
-from backports.cached_property import cached_property
 
 if __name__ == "__main__":
     from paths import *
-    from projects import *
+    from projects import Project
     from utils import *
 
     import lims2 as lims
@@ -21,7 +21,7 @@ if __name__ == "__main__":
     import data_getters as dg
 else:
     from .paths import *
-    from .projects import *
+    from .projects import Project
     from .utils import *
 
     from . import lims2 as lims
@@ -131,7 +131,7 @@ class Session:
                 self._mouse = {}
         return self._mouse
 
-    @cached_property
+    @functools.cached_property
     def date(self) -> Union[str, datetime.date]:
         d = self.folder.split("_")[2]
         date = datetime.date(year=int(d[:4]), month=int(d[4:6]), day=int(d[6:]))
@@ -215,10 +215,12 @@ class Session:
         return self._mtrain
 
 
-def on_npexp(
-    project: str | Project = None, session: Literal["ecephys", "behavior"] = "ecephys"
+def sessions(
+    path = NPEXP_ROOT,
+    project: str | Project = None,
+    session_type: Literal["ecephys", "behavior"] = "ecephys",
 ) -> Generator[Session, None, None]:
-    """Session folders on npexp.
+    """Recursively find Session folders in a directory.
 
     Project is the common-name among the neuropixels team: 'DR', 'GLO', 'VAR', 'ILLUSION'
     (use the Project enum if unsure)
@@ -237,11 +239,11 @@ def on_npexp(
             continue
 
         if (
-            session == "ecephys" and session.is_ecephys_session == False
+            session_type == "ecephys" and session.is_ecephys_session == False
         ):  # None = unsure and is included
             continue
         if (
-            session == "behavior" and session.is_ecephys_session
+            session_type == "behavior" and session.is_ecephys_session
         ):  # None = unsure and is included
             continue
 
