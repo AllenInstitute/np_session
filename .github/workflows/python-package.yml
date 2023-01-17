@@ -1,0 +1,21 @@
+# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+
+name: Poetry build & publish on PyPI
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build and publish to pypi
+      uses: JRubics/poetry-publish@v1.15
+      with:
+        pypi_token: ${{ secrets.PYPI_TOKEN }}
+        ignore_dev_requirements: "yes"
