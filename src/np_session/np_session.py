@@ -84,6 +84,13 @@ class Session:
     '576323'
 
     """
+    def __lt__(self, other: Session) -> bool:
+        if not hasattr(other, 'date'):
+            return NotImplemented
+        return self.date < other.date
+
+    def __repr__(self) -> str:
+        return f'{__class__.__name__}({self.folder!r})'
 
     def __init__(self, path: PathLike):
 
