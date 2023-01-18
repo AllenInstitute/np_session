@@ -66,11 +66,7 @@ def is_valid_session_id(session_id: int | str) -> bool:
     >>> is_valid_session_id('abcdefg')
     False
     """
-    try:
-        session = lims_data_getter(str(session_id))
-    except:
-        return False
-    return bool(session.data_dict) if hasattr(session, "data_dict") else False
+    return bool(SessionInfo(str(session_id)))
 
 
 def lims_session_id(path: PathLike) -> str | None:
