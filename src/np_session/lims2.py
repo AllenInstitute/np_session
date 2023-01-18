@@ -69,22 +69,31 @@ class LIMS2InfoBaseClass(collections.UserDict, abc.ABC):
         return f"{self.__class__.__name__}('{self.np_id}')"
 
     def __bool__(self):
-        return True if self.np_id else False
+        try:
+            self.info_from_lims()
+        except ValueError:
+            return False
+        else:
+            return True
 
-    def info_from_lims(self, np_id) -> dict[str, Any]:
+    def info_from_lims(self) -> dict[str, Any]:
         "Return the object's info from lims database or raises a ValueError if not found."
         try:
-            return self._get_info(np_id)[0]
+            return self._get_info(self.np_id)[0]
         except IndexError:
             raise ValueError(
-                f"Could not find {self.__class__.__name__} {np_id} in lims"
+                f"Could not find {self.__class__.__name__} {self.np_id} in lims"
             ) from None
 
     def fetch(self):
         "Fetch the object's info from lims once."
         if not self.data:
-            info = self.info_from_lims(self.np_id)
-            self.data = dict(**info)
+            try:
+                info = self.info_from_lims()
+            except ValueError:
+                self.data = {}
+            else:
+                self.data = dict(**info)
 
     def keys(self):
         "Fetch before returning keys."
@@ -203,11 +212,11 @@ class SessionInfo(LIMS2InfoBaseClass):
         self.cast()
         return self.get_folder()
 
-    def info_from_lims(self, np_id) -> dict:
+    def info_from_lims(self) -> dict:
         try:
-            data = super().info_from_lims(np_id)  # with ecephys_info
+            data = super().info_from_lims()  # with ecephys_info
         except ValueError:
-            response = behavior_info(np_id)  # try behavior_info instead
+            response = behavior_info(self.np_id)  # try behavior_info instead
             if not response:
                 raise
             self._session = "behavior"
@@ -219,7 +228,7 @@ class SessionInfo(LIMS2InfoBaseClass):
 
     def cast(self):
         if not hasattr(self, "_session"):
-            _ = self["id"]  # trigger fetching data from lims
+            _ = self.fetch()  # trigger fetching data from lims
         self.__class__ = (
             EcephysSessionInfo if self._session == "ecephys" else BehaviorSessionInfo
         )
