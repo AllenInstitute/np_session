@@ -175,7 +175,7 @@ class Session:
         "Expected default path, or alternative if one exists"
         return self.qc_paths[0] if self.qc_paths else QC_PATHS[0] / self.folder
     
-    @cached_property
+    @functools.cached_property
     def qc_paths(self) -> list[pathlib.Path]:
         "Any QC folders that exist"
         return [path / self.folder for path in QC_PATHS if (path / self.folder).exists()]    
@@ -184,7 +184,7 @@ class Session:
     def project(self) -> str | None:
         return self.lims.get("project", {}).get("name", None)
 
-    @cached_property
+    @functools.cached_property
     def lims_data_getter(self) -> dg.dat | None:
         try:
             return dg.lims_data_getter(self.id)
