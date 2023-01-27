@@ -11,23 +11,23 @@ from typing import Any, Generator, Union
 from typing_extensions import Literal
 
 if __name__ == "__main__":
-    from paths import *
-    from projects import Project
-    from utils import *
-
+    import data_getters as dg
     import lims2 as lims
     import mtrain
 
-    import data_getters as dg
-else:
-    from .paths import *
-    from .projects import Project
-    from .utils import *
+    from utils import *
+    from paths import *
+    from projects import Project
 
+else:
+    from . import data_getters as dg
     from . import lims2 as lims
     from . import mtrain
 
-    from . import data_getters as dg
+    from .utils import *
+    from .paths import *
+    from .projects import Project
+
 
 PathLike = Union[str, bytes, os.PathLike, pathlib.Path]
 # https://peps.python.org/pep-0519/#provide-specific-type-hinting-support
