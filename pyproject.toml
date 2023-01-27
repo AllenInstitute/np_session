@@ -19,6 +19,15 @@ black = {version = "*", optional = true}
 pytest = {version = "*", optional = true}
 poetry = {version = "*", optional = true}
 
+[tool.poetry.extras]
+dev = [
+    "pip-tools", # convert pyproject.toml to requirements.txt
+    "isort", # sort imports
+    "mypy",
+    "black",
+    "pytest",
+    "poetry",
+]
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
