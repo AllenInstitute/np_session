@@ -92,17 +92,17 @@ class Session:
     def __repr__(self) -> str:
         return f'{__class__.__name__}({self.folder!r})'
 
-    def __init__(self, path: PathLike):
+    def __init__(self, path_or_session: PathLike | int):
 
-        path = pathlib.Path(path)
+        path_or_session = pathlib.Path(path_or_session)
 
-        np_folder = folder(path)
+        np_folder = folder(path_or_session)
 
         if not np_folder:
-            np_folder = folder_from_lims_id(path)
+            np_folder = folder_from_lims_id(path_or_session)
 
         if np_folder is None:
-            raise SessionError(f"{path} does not contain a valid lims session id or session folder string")
+            raise SessionError(f"{path_or_session} does not contain a valid lims session id or session folder string")
 
         self.folder = np_folder
         self.id = self.folder.split("_")[0]
