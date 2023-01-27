@@ -93,9 +93,11 @@ class Session:
         return f'{__class__.__name__}({self.folder!r})'
 
     def __init__(self, path_or_session: PathLike | int):
-
+        
+        path_or_session = str(path_or_session)
+        
         path_or_session = pathlib.Path(path_or_session)
-
+        
         np_folder = folder(path_or_session)
 
         if not np_folder:
