@@ -9,7 +9,7 @@ packages = [{include = "np_session", from = "src"}]
 [tool.poetry.dependencies]
 python = "^3.7"
 typing-extensions = "*"
-psycopg2 = "^2.9"
+psycopg2-binary = "^2.9"
 requests = "*"
 np_config = "*"
 pip-tools = {version = "*", optional = true}
