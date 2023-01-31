@@ -583,7 +583,7 @@ def convert_path_str_to_pathlib(data_dict_orig) -> dict:
     data_dict = data_dict_orig.copy()
     for k, v in data_dict.items():
         if isinstance(v, str) and (v.startswith("/") or v.startswith("\\")):
-            v.replace("\\", "/")
+            v = v.replace("\\", "/")
             if v[:2] != "//":
                 v = "/" + v
             data_dict[k] = pathlib.Path(v)

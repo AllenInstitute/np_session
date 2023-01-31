@@ -187,7 +187,7 @@ class Session:
         return self.lims.get("project", {}).get("name", None)
 
     @functools.cached_property
-    def lims_data_getter(self) -> dg.dat | None:
+    def lims_data_getter(self) -> dg.data_getter | None:
         try:
             return dg.lims_data_getter(self.id)
         except ConnectionError:
