@@ -148,7 +148,7 @@ class Session:
         return self._mouse
 
     @functools.cached_property
-    def date(self) -> Union[str, datetime.date]:
+    def date(self) -> datetime.date:
         d = self.folder.split("_")[2]
         date = datetime.date(year=int(d[:4]), month=int(d[4:6]), day=int(d[6:]))
         return date
