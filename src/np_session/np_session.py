@@ -93,8 +93,11 @@ class Session:
             return NotImplemented
         return self.date < other.date
 
+    def __str__(self) -> str:
+        return self.folder
+    
     def __repr__(self) -> str:
-        return f'{__class__.__name__}({self.folder!r})'
+        return f'{self.__class__.__name__}({self.folder!r})'
 
     def __init__(self, path_or_session: PathLike | int):
         
