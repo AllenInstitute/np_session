@@ -1,4 +1,5 @@
 from __future__ import annotations
+import contextlib
 
 import datetime
 import doctest
@@ -9,6 +10,8 @@ import pathlib
 from typing import Any, Generator, Union
 
 from typing_extensions import Literal
+
+from np_config import Rig
 
 if __name__ == "__main__":
     import data_getters as dg
@@ -148,6 +151,30 @@ class Session:
         return date
 
     @property
+    def rig(self) -> Rig | None:
+        "NP-<rig_idx>"
+        if not hasattr(self, "_rig"):
+            self._rig = None
+            while not self._rig:
+                
+                # try from current rig first
+                with contextlib.suppress(ValueError):
+                    self._rig = Rig()
+                    continue
+                    
+                # TODO try from platform json
+                
+                # try from lims 
+                rig_id: str | None = self.data_dict.get('rig')
+                if rig_id:
+                    self._rig = Rig(rig_id)
+                    continue
+                
+                break
+        # TODO override self._rig._stim and ._acq if session date is before comp switch
+        return self._rig
+    
+    @property
     def is_ecephys_session(self) -> bool | None:
         """False if behavior session, None if unsure."""
         if not self.lims:
@@ -198,11 +225,11 @@ class Session:
             raise
 
     @property
-    def data_dict(self) -> dict | None:
+    def data_dict(self) -> dict:
         if not hasattr(self, "_data_dict"):
             data_getter = self.lims_data_getter
             if not data_getter:
-                self.data_dict = None
+                self._data_dict = {}
             else:
                 self._data_dict_orig = data_getter.data_dict  # str paths
                 self._data_dict = data_getter.data_dict_pathlib  # pathlib paths
