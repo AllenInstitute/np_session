@@ -23,6 +23,7 @@ else:
     from .lims2 import SessionInfo
     from . import paths 
 
+logger = logging.getLogger(__name__)
 
 PathLike = Union[str, bytes, os.PathLike, pathlib.Path]
 # https://peps.python.org/pep-0519/#provide-specific-type-hinting-support
@@ -100,7 +101,7 @@ def folder(path: PathLike) -> str | None:
     if not session_folders:
         return folder_from_lims_id(path)
     if not all(s == session_folders[0] for s in session_folders):
-        logging.warning(
+        logger.warning(
             f"Mismatch between session folder strings - file may be in the wrong folder: {path!r}"
         )
     return session_folders[0]
@@ -155,7 +156,7 @@ def lims_json_content(lims_id: int | str) -> dict | None:
         response = requests.get(f"http://lims2/{session_type}/{lims_id}.json?")
         if response.status_code == 200:
             return response.json()
-    logging.warning(f"Could not find json content for lims session id {lims_id}")
+    logger.warning(f"Could not find json content for lims session id {lims_id}")
     return None
 
 

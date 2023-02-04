@@ -28,6 +28,7 @@ else:
     from .paths import *
     from .projects import Project
 
+logger = logging.getLogger(__name__)
 
 PathLike = Union[str, bytes, os.PathLike, pathlib.Path]
 # https://peps.python.org/pep-0519/#provide-specific-type-hinting-support
@@ -164,7 +165,7 @@ class Session:
         if not hasattr(self, "_lims_path"):
             path: str = self.lims.get("storage_directory", "")
             if not path:
-                logging.debug(
+                logger.debug(
                     "lims checked successfully, but no folder uploaded for ", self.id
                 )
                 self._lims_path = None
@@ -191,7 +192,7 @@ class Session:
         try:
             return dg.lims_data_getter(self.id)
         except ConnectionError:
-            logging.debug("Connection to lims failed", exc_info=True)
+            logger.debug("Connection to lims failed", exc_info=True)
             return None
         except:
             raise

@@ -27,10 +27,11 @@ from typing import Any, Callable, Type, Union
 
 import requests
 
+logger = logging.getLogger(__name__)
 
 def requester(url: str, *args) -> dict:
     request = url.format(*args)  # .replace(";", "%3B")
-    logging.debug(f"Requesting {request}")
+    logger.debug(f"Requesting {request}")
     response = requests.get(request)
     if response.status_code != 200:
         raise ValueError(f"Bad response from {request}: {response.status_code}")

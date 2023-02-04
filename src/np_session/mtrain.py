@@ -25,7 +25,7 @@ class MTrain:
         # but it doesn't necessarily have to be set on init
         if mouse_id:
             self.mouse_id = str(mouse_id)
-
+    
     def session(self):
         session = requests.session()
         session.post(
