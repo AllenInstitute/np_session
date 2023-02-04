@@ -11,7 +11,7 @@ from typing import Any, Generator, Union
 
 from typing_extensions import Literal
 
-from np_config import Rig
+import np_config
 
 if __name__ == "__main__":
     import data_getters as dg
@@ -154,15 +154,15 @@ class Session:
         return date
 
     @property
-    def rig(self) -> Rig | None:
-        "NP-<rig_idx>"
+    def rig(self) -> np_config.Rig | None:
+        "Rig object with computer info and paths, can also be used as a string."
         if not hasattr(self, "_rig"):
             self._rig = None
             while not self._rig:
                 
                 # try from current rig first
                 with contextlib.suppress(ValueError):
-                    self._rig = Rig()
+                    self._rig = np_config.Rig()
                     continue
                     
                 # TODO try from platform json
@@ -170,7 +170,7 @@ class Session:
                 # try from lims 
                 rig_id: str | None = self.data_dict.get('rig')
                 if rig_id:
-                    self._rig = Rig(rig_id)
+                    self._rig = np_config.Rig(rig_id)
                     continue
                 
                 break
@@ -186,12 +186,12 @@ class Session:
 
     @property
     def npexp_path(self) -> pathlib.Path:
-        """get session folder from path/str and combine with npexp root to get folder path on npexp"""
+        """np-exp root / folder (may not exist)"""
         return NPEXP_ROOT / self.folder
 
     @property
     def lims_path(self) -> pathlib.Path | None:
-        """get lims id from path/str and lookup the corresponding directory in lims"""
+        """Corresponding directory in lims, if one can be found"""
         if not hasattr(self, "_lims_path"):
             path: str = self.lims.get("storage_directory", "")
             if not path:
@@ -202,10 +202,15 @@ class Session:
             else:
                 self._lims_path = pathlib.Path("/" + path)
         return self._lims_path
-
+    
+    @property
+    def z_path(self) -> pathlib.Path:
+        "Path in Sync neuropixels_data (aka Z:) (may not exist)) "
+        return np_config.local_to_unc(self.rig.sync, NEUROPIXELS_DATA_RELATIVE_PATH) / self.folder
+    
     @property
     def qc_path(self) -> pathlib.Path:
-        "Expected default path, or alternative if one exists"
+        "Expected default path, or alternative if one exists - see `qc_paths` for all available"
         return self.qc_paths[0] if self.qc_paths else QC_PATHS[0] / self.folder
     
     @functools.cached_property
