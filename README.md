@@ -17,7 +17,8 @@ True
 # - `pathlib` objects for filesystem paths:
 >>> session.lims_path.as_posix()
 '//allen/programs/braintv/production/visualbehavior/prod0/specimen_1098595957/ecephys_session_1116941914'
->>> session.data_dict
+>>> session.data_dict['es_id']
+'1116941914'
 
 # - `datetime` objects for easy date manipulation:
 >>> session.date

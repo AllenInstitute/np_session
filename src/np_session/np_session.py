@@ -1,6 +1,6 @@
 from __future__ import annotations
-import contextlib
 
+import contextlib
 import datetime
 import doctest
 import functools
@@ -9,27 +9,24 @@ import os
 import pathlib
 from typing import Any, Generator, Union
 
+import np_config
 from typing_extensions import Literal
 
-import np_config
-
 if __name__ == "__main__":
-    import data_getters as dg
-    import lims2 as lims
-    import mtrain
-
+    from components.info import MouseInfo, ProjectInfo, UserInfo, Projects
+    from components.paths import *
+    from databases import data_getters as dg
+    from databases import lims2 as lims
+    from databases import mtrain
     from utils import *
-    from paths import *
-    from projects import Project
 
 else:
-    from . import data_getters as dg
-    from . import lims2 as lims
-    from . import mtrain
-
-    from .utils import *
-    from .paths import *
-    from .projects import Project
+    from np_session.components.info import MouseInfo, ProjectInfo, UserInfo, Projects
+    from np_session.components.paths import *
+    from np_session.databases import data_getters as dg
+    from np_session.databases import lims2 as lims
+    from np_session.databases import mtrain
+    from np_session.utils import *
 
 logger = logging.getLogger(__name__)
 
@@ -59,12 +56,12 @@ class Session:
 
     Quick access to useful properties:
     >>> session = Session('c:/1116941914_surface-image1-left.png')
-    >>> session.id
-    '1116941914'
+    >>> session.lims.id
+    1116941914
     >>> session.folder
     '1116941914_576323_20210721'
-    >>> session.project
-    'BrainTV Neuropixels Visual Behavior'
+    >>> session.project.lims.id
+    714916854
     >>> session.is_ecephys_session
     True
 
@@ -76,16 +73,22 @@ class Session:
     - `datetime` objects for easy date manipulation:
     >>> session.date
     datetime.date(2021, 7, 21)
-
+    
     - dictionaries from lims (loaded lazily):
-    >>> session.mouse['id']
-    1098595953
-    >>> session.mouse['full_genotype']
+    >>> session.mouse
+    MouseInfo(576323)
+    >>> session.mouse.lims
+    LIMS2MouseInfo(576323)
+    >>> session.mouse.lims.id
+    1098595957
+    >>> session.mouse.lims['full_genotype']
     'wt/wt'
 
     ...with a useful string representation:
     >>> str(session.mouse)
     '576323'
+    >>> str(session.project)
+    'NeuropixelVisualBehavior'
 
     """
     def __lt__(self, other: Session) -> bool:
@@ -114,39 +117,46 @@ class Session:
             raise SessionError(f"{path_or_session} does not contain a valid lims session id or session folder string")
 
         self.folder = np_folder
-        self.id = self.folder.split("_")[0]
+        self.id = int(self.folder.split("_")[0])
 
     @property
-    def lims(self) -> dict[str, Any]:
+    def lims(self) -> lims.LIMS2SessionInfo | dict:
         """
-        >>> info = Session('1116941914').lims
+        >>> info = Session(1116941914).lims
         >>> info['stimulus_name']
         'EPHYS_1_images_H_3uL_reward'
         >>> info['operator']['login']
         'taminar'
 
-        >>> Session('1116941914').lims
-        SessionInfo('1116941914')
-        >>> str(Session('1116941914').lims)
+        >>> Session(1116941914).lims
+        LIMS2SessionInfo(1116941914)
+        >>> str(Session(1116941914).lims)
         '1116941914'
 
         """
         if not hasattr(self, "_lims"):
             try:
-                self._lims = lims.SessionInfo(self.id)
+                self._lims = lims.LIMS2SessionInfo(self.id)
             except ValueError:
                 self._lims = {}
         return self._lims
 
     @property
-    def mouse(self) -> str | dict[str, Any]:
+    def mouse(self) -> MouseInfo:
         if not hasattr(self, "_mouse"):
-            try:
-                self._mouse = lims.MouseInfo(self.folder.split("_")[1])
-            except ValueError:
-                self._mouse = {}
+            self._mouse = MouseInfo(self.folder.split("_")[1])
         return self._mouse
-
+    
+    @property
+    def user(self) -> UserInfo | None:
+        if not hasattr(self, "_user"):
+            lims_user_id = self.lims.get('operator', {}).get('login', '')
+            if lims_user_id:
+                self._user = UserInfo(lims_user_id)
+            else:
+                self._user = None
+        return self._user
+    
     @functools.cached_property
     def date(self) -> datetime.date:
         d = self.folder.split("_")[2]
@@ -219,9 +229,15 @@ class Session:
         return [path / self.folder for path in QC_PATHS if (path / self.folder).exists()]    
     
     @property
-    def project(self) -> str | None:
-        return self.lims.get("project", {}).get("name", None)
-
+    def project(self) -> ProjectInfo | None:
+        if not hasattr(self, "_project"):
+            lims_project_name = self.lims.get('project', {}).get('code', '')
+            if lims_project_name:
+                self._project = ProjectInfo(lims_project_name)
+            else:
+                self._project = None
+        return self._project
+    
     @functools.cached_property
     def lims_data_getter(self) -> dg.data_getter | None:
         try:
@@ -244,25 +260,29 @@ class Session:
         return self._data_dict
 
     @property
-    def mtrain(self) -> dict | None:
+    def mtrain(self) -> mtrain.MTrain | dict:
         """Info from MTrain on the last behavior session for the mouse on the experiment day"""
         if not hasattr(self, "_mtrain"):
             if not is_connected("mtrain"):
-                return None
+                return {}
             try:
-                self.mouse.mtrain = mtrain.MTrain(self.mouse)
+                _ = self.mouse.mtrain
             except mtrain.MouseNotInMTrainError:
-                self._mtrain = None
+                self._mtrain = {}
             except:
                 raise
             else:
                 self._mtrain = self.mouse.mtrain.last_behavior_session_on(self.date)
         return self._mtrain
 
+    @property
+    def foraging_id(self) -> str | None:
+        """Foraging ID from MTrain (if an MTrain session is found)."""
+        return self.mtrain.get("id", None)
 
 def sessions(
     path = NPEXP_ROOT,
-    project: str | Project = None,
+    project: str | Projects = None,
     session_type: Literal["ecephys", "behavior"] = "ecephys",
 ) -> Generator[Session, None, None]:
     """Recursively find Session folders in a directory.
@@ -272,7 +292,7 @@ def sessions(
     """
 
     if isinstance(project, str):
-        project = getattr(Project, project)
+        project = getattr(Projects, project)
 
     for path in NPEXP_PATH.iterdir():
 

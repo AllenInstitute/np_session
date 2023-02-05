@@ -24,7 +24,10 @@ class MTrain:
         # we'll only allow mouse_id to be set once per instance
         # but it doesn't necessarily have to be set on init
         if mouse_id:
-            self.mouse_id = str(mouse_id)
+            self.mouse_id = mouse_id
+    
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.mouse_id!r})"
     
     def session(self):
         session = requests.session()

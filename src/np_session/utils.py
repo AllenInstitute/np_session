@@ -10,18 +10,18 @@ import pathlib
 import re
 import subprocess
 import sys
-from typing import Union, Literal
+from typing import Literal, Union
 
 import requests
 
 if __name__ == "__main__":
-    from data_getters import lims_data_getter
-    from lims2 import SessionInfo
-    import paths
+    import components.paths
+    from databases.data_getters import lims_data_getter
+    from databases.lims2 import LIMS2SessionInfo
 else:
-    from .data_getters import lims_data_getter
-    from .lims2 import SessionInfo
-    from . import paths 
+    from np_session.components import paths
+    from np_session.databases.data_getters import lims_data_getter
+    from np_session.databases.lims2 import LIMS2SessionInfo 
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +67,7 @@ def is_valid_session_id(session_id: int | str) -> bool:
     >>> is_valid_session_id('abcdefg')
     False
     """
-    return bool(SessionInfo(str(session_id)))
+    return bool(LIMS2SessionInfo(str(session_id)))
 
 
 def lims_session_id(path: PathLike) -> str | None:
@@ -143,7 +143,7 @@ def folder_from_lims_id(path: PathLike) -> str | None:
     session_id = lims_session_id(path)
     if session_id is None:
         return None
-    return SessionInfo(session_id).folder
+    return LIMS2SessionInfo(session_id).folder
 
 
 @functools.lru_cache(maxsize=None)
