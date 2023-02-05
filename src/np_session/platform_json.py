@@ -19,35 +19,12 @@ import nptk
 import strategies
 from data_validation import *
 
-# -------------------------------------------------------------------------------------- #
-STAGING = False 
-# don't actually copy or modify anything - instead, create a 'virtual' session folder
-# using symlinks to the actual data - ONLY APPLIES TO 'Files' CLASS
-STAGING_ROOT = pathlib.Path("//allen/programs/mindscope/workgroups/dynamicrouting/ben/staging")
-if STAGING:
-    warnings.warn(f"Staging mode is ON. No files will be copied or modified.\nA virtual session folder will be created at {STAGING_ROOT}") if STAGING else None
-# -------------------------------------------------------------------------------------- #
 
 TEMPLATES_ROOT = pathlib.Path("//allen/programs/mindscope/workgroups/dynamicrouting/ben/npexp_data_manifests")
 
 WSE_DATETIME_FORMAT = '%Y%m%d%H%M%S' # should match the pattern used throughout the WSE
 
-MVR_RELATIVE_PATH = pathlib.Path("c$/ProgramData/AIBS_MPE/mvr/data")
-NEWSCALE_RELATIVE_PATH = pathlib.Path("c$/MPM_data")
-CAMVIEWER_RELATIVE_PATH = pathlib.Path("c$/Users/svc_neuropix/cv3dImages") # NP.0 only
-CAMSTIM_RELATIVE_PATH = pathlib.Path("c$/ProgramData/AIBS_MPE/camstim/data")
-SYNC_RELATIVE_PATH = pathlib.Path("c$/ProgramData/AIBS_MPE/sync/data")
-
-NEUROPIXELS_DATA_RELATIVE_PATH = pathlib.Path("c$/ProgramData/AIBS_MPE/neuropixels_data")
-NPEXP_PATH = pathlib.Path("//allen/programs/mindscope/workgroups/np-exp")
-
 INCOMING_ROOT = pathlib.Path("//allen/programs/braintv/production/incoming/neuralcoding")
-
-QC_PATHS = (
-    pathlib.Path("//allen/programs/braintv/workgroups/nc-ophys/corbettb/NP_behavior_pipeline/QC"),
-    pathlib.Path("//allen/programs/mindscope/workgroups/openscope/GLO_QC"),
-    pathlib.Path("//allen/programs/mindscope/workgroups/openscope/Illusion_QC"),
-)
 
 @dataclasses.dataclass
 class D2Checklist:
@@ -105,7 +82,7 @@ class PlatformJson(SessionFile):
         pass
     # files_template: dict
     
-    def __init__(self,path: Union[str, pathlib.Path] = None):
+    def __init__(self, path: Union[str, pathlib.Path] = None):
         if path:
             if isinstance(path,str) and path.endswith('.json'):
                 self.path = pathlib.Path(path)
