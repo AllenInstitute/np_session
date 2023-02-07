@@ -280,6 +280,25 @@ class Session:
         """Foraging ID from MTrain (if an MTrain session is found)."""
         return self.mtrain.get("id", None)
 
+def generate_session(
+    mouse: str | int | Mouse,
+    user: str | User,
+    session_type: Literal["ecephys", "hab"] = "ecephys",
+) -> Session:
+    if not isinstance(mouse, Mouse):
+        mouse = Mouse(mouse)
+    if not isinstance(user, User):
+        user = User(user)
+    if session_type == "ecephys":
+        lims_session = lims.generate_ecephys_session(mouse=mouse.lims, user=user.lims)
+    elif session_type == "hab":
+        lims_session = lims.generate_hab_session(mouse=mouse.lims, user=user.lims)
+    session = Session(lims_session)
+    # assign instances with data already fetched from lims:
+    session._mouse = mouse  
+    session._user = user
+    return session
+
 def sessions(
     path = NPEXP_ROOT,
     project: str | Projects = None,

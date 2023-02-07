@@ -255,7 +255,7 @@ class LIMS2EcephysSessionInfo(LIMS2SessionInfo):
     "Don't instantiate directly, use LIMS2SessionInfo and class will be converted after info fetched from lims."
 
     def get_folder(self) -> str:
-        return f"{self.np_id}_{self['specimen']['external_specimen_name']}_{self['name'][:8]}"
+        return f"{self.np_id}_{self['specimen']['external_specimen_name']}_{self['name'].replace('HAB_', '')[:8]}"
 
     def __repr__(self):
         return f"{__class__.__bases__[0].__name__}({self.np_id!r})"
@@ -291,6 +291,33 @@ def generate_ecephys_session(
         "project_id": mouse.project_id,
         "isi_experiment_id": mouse.isi_id,
         "name": f"{timestamp}_{user.lims_id}",
+        "operator_id": user.lims_id,
+    }
+    url = "http://lims2/observatory/ecephys_session/create"
+    response = requests.post(url, json=request_json)
+    decoded_dict = json.loads(response.content.decode("utf-8"))
+    new_session_id = decoded_dict["id"]
+    if not new_session_id:
+        raise ValueError(f"Failed to create session: {decoded_dict}")
+    return LIMS2SessionInfo(new_session_id)
+
+def generate_hab_session(
+    mouse: str | int | LIMS2MouseInfo,
+    user: str | LIMS2UserInfo,
+) -> LIMS2SessionInfo:
+    "Create a new session and return an object instance with its info."
+
+    if not isinstance(mouse, LIMS2MouseInfo):
+        mouse = LIMS2MouseInfo(mouse)
+    if not isinstance(user, LIMS2UserInfo):
+        user = LIMS2UserInfo(user)
+
+    timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+    request_json = {
+        "specimen_id": mouse.lims_id,
+        "project_id": mouse.project_id,
+        "isi_experiment_id": mouse.isi_id,
+        "name": f"HAB_{timestamp}_{user.lims_id}",
         "operator_id": user.lims_id,
     }
     url = "http://lims2/observatory/ecephys_session/create"
