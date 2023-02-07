@@ -32,7 +32,7 @@ class InfoBaseClass(abc.ABC):
             return self.id == int(str(other))
         return False
 
-class MouseInfo(InfoBaseClass):
+class Mouse(InfoBaseClass):
     def __init__(self, labtracks_mouse_id: str | int):
         self.id = int(labtracks_mouse_id)
     
@@ -52,7 +52,7 @@ class MouseInfo(InfoBaseClass):
         return MTrain(self.id)
     
     
-class UserInfo(InfoBaseClass):
+class User(InfoBaseClass):
     def __init__(self, lims_user_id: str):
         self.id = str(lims_user_id)
         
@@ -88,7 +88,7 @@ class Projects(enum.Enum):
         'NeuropixelVisualBehavior',
     )
     
-class ProjectInfo(InfoBaseClass):
+class Project(InfoBaseClass):
     
     def __init__(self, lims_project_name: str):
         self.id = str(lims_project_name)

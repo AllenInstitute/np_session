@@ -13,7 +13,7 @@ import np_config
 from typing_extensions import Literal
 
 if __name__ == "__main__":
-    from components.info import MouseInfo, ProjectInfo, UserInfo, Projects
+    from components.info import Mouse, Project, Projects, User
     from components.paths import *
     from databases import data_getters as dg
     from databases import lims2 as lims
@@ -21,7 +21,7 @@ if __name__ == "__main__":
     from utils import *
 
 else:
-    from np_session.components.info import MouseInfo, ProjectInfo, UserInfo, Projects
+    from np_session.components.info import Mouse, Project, Projects, User
     from np_session.components.paths import *
     from np_session.databases import data_getters as dg
     from np_session.databases import lims2 as lims
@@ -76,7 +76,7 @@ class Session:
     
     - dictionaries from lims (loaded lazily):
     >>> session.mouse
-    MouseInfo(576323)
+    Mouse(576323)
     >>> session.mouse.lims
     LIMS2MouseInfo(576323)
     >>> session.mouse.lims.id
@@ -142,17 +142,17 @@ class Session:
         return self._lims
 
     @property
-    def mouse(self) -> MouseInfo:
+    def mouse(self) -> Mouse:
         if not hasattr(self, "_mouse"):
-            self._mouse = MouseInfo(self.folder.split("_")[1])
+            self._mouse = Mouse(self.folder.split("_")[1])
         return self._mouse
     
     @property
-    def user(self) -> UserInfo | None:
+    def user(self) -> User | None:
         if not hasattr(self, "_user"):
             lims_user_id = self.lims.get('operator', {}).get('login', '')
             if lims_user_id:
-                self._user = UserInfo(lims_user_id)
+                self._user = User(lims_user_id)
             else:
                 self._user = None
         return self._user
@@ -229,11 +229,11 @@ class Session:
         return [path / self.folder for path in QC_PATHS if (path / self.folder).exists()]    
     
     @property
-    def project(self) -> ProjectInfo | None:
+    def project(self) -> Project | None:
         if not hasattr(self, "_project"):
             lims_project_name = self.lims.get('project', {}).get('code', '')
             if lims_project_name:
-                self._project = ProjectInfo(lims_project_name)
+                self._project = Project(lims_project_name)
             else:
                 self._project = None
         return self._project
