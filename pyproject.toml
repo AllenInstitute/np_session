@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "np-session"
-version = "0.1.1"
+version = "0.1.2"
 description = "Tools for managing files and metadata associated with ecephys and behavior sessions for the Mindscope Neuropixels team."
 authors = ["Ben Hardcastle <ben.hardcastle@alleninstitute.org>"]
 readme = "README.md"
