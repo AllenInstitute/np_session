@@ -102,7 +102,7 @@ class Session:
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}({self.folder!r})'
 
-    def __init__(self, path_or_session: PathLike | int):
+    def __init__(self, path_or_session: PathLike | int | LIMS2SessionInfo):
         
         path_or_session = str(path_or_session)
         
@@ -118,6 +118,9 @@ class Session:
 
         self.folder = np_folder
         self.id = int(self.folder.split("_")[0])
+        
+        if isinstance(path_or_session, LIMS2SessionInfo):
+            self._lims = path_or_session
 
     @property
     def lims(self) -> lims.LIMS2SessionInfo | dict:
