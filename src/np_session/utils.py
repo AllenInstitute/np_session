@@ -23,7 +23,7 @@ else:
     from np_session.databases.data_getters import lims_data_getter
     from np_session.databases.lims2 import LIMS2SessionInfo 
 
-logger = logging.getLogger(__name__)
+logger = np_logging.getLogger(__name__)
 
 PathLike = Union[str, bytes, os.PathLike, pathlib.Path]
 # https://peps.python.org/pep-0519/#provide-specific-type-hinting-support

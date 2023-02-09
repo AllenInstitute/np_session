@@ -4,7 +4,6 @@ import contextlib
 import datetime
 import doctest
 import functools
-import logging
 import os
 import pathlib
 from typing import Any, Generator, Union
