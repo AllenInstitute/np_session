@@ -20,14 +20,14 @@ import collections
 import datetime
 import functools
 import json
-import logging
 import pathlib
 import re
 from typing import Any, Callable, Type, Union
 
+import np_logging
 import requests
 
-logger = logging.getLogger(__name__)
+logger = np_logging.getLogger(__name__)
 
 def requester(url: str, *args) -> dict:
     request = url.format(*args)  # .replace(";", "%3B")

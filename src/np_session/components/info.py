@@ -6,10 +6,11 @@ import datetime
 import enum
 import functools
 import json
-import logging
 import pathlib
 import re
 from typing import Any, Callable, ClassVar, Type, Union
+
+import np_logging
 
 from np_session.databases.lims2 import (LIMS2MouseInfo, LIMS2ProjectInfo,
                                         LIMS2UserInfo)

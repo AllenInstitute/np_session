@@ -10,25 +10,17 @@ import pathlib
 from typing import Any, Generator, Union
 
 import np_config
+import np_logging
 from typing_extensions import Literal
 
-if __name__ == "__main__":
-    from components.info import Mouse, Project, Projects, User
-    from components.paths import *
-    from databases import data_getters as dg
-    from databases import lims2 as lims
-    from databases import mtrain
-    from utils import *
+from np_session.components.info import Mouse, Project, Projects, User
+from np_session.components.paths import *
+from np_session.databases import data_getters as dg
+from np_session.databases import lims2 as lims
+from np_session.databases import mtrain
+from np_session.utils import *
 
-else:
-    from np_session.components.info import Mouse, Project, Projects, User
-    from np_session.components.paths import *
-    from np_session.databases import data_getters as dg
-    from np_session.databases import lims2 as lims
-    from np_session.databases import mtrain
-    from np_session.utils import *
-
-logger = logging.getLogger(__name__)
+logger = np_logging.getLogger(__name__)
 
 PathLike = Union[str, bytes, os.PathLike, pathlib.Path]
 # https://peps.python.org/pep-0519/#provide-specific-type-hinting-support

@@ -4,7 +4,6 @@ import doctest
 import enum
 import functools
 import json
-import logging
 import os
 import pathlib
 import re
@@ -12,6 +11,7 @@ import subprocess
 import sys
 from typing import Literal, Union
 
+import np_logging
 import requests
 
 if __name__ == "__main__":
