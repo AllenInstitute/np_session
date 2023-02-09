@@ -11,6 +11,8 @@ from np_session import Session
 'BrainTV Neuropixels Visual Behavior'
 >>> session.is_ecephys_session
 True
+>>> session.rig.acq # (see `np_config.Rig`)
+'W10DT713843'
 
 # some properties are objects with richer information:
 
@@ -24,24 +26,21 @@ True
 >>> session.date
 datetime.date(2021, 7, 21)
 
-# - dictionaries from databases (loaded lazily):
->>> session.mouse['id']
-1098595953
->>> session.mouse['full_genotype']
+# - dictionaries from lims (loaded lazily):
+>>> session.mouse
+Mouse(576323)
+>>> session.mouse.lims
+LIMS2MouseInfo(576323)
+>>> session.mouse.lims.id
+1098595957
+>>> session.mouse.lims['full_genotype']
 'wt/wt'
->>> session.lims['stimulus_name']
-'EPHYS_1_images_H_3uL_reward'
->>> session.mtrain
 
-# - rig info (see `np_config.Rig`)
->>> session.rig.acq
-'W10DT713843'
-
-# with useful string representation:
+# ...with a useful string representation:
 >>> str(session.mouse)
 '576323'
->>> str(session)
-'1116941914_576323_20210721'
+>>> str(session.project)
+'NeuropixelVisualBehavior'
 >>> str(session.rig)
 'NP.0'
 ```
