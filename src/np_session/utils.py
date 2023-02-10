@@ -14,14 +14,9 @@ from typing import Literal, Union
 import np_logging
 import requests
 
-if __name__ == "__main__":
-    import components.paths
-    from databases.data_getters import lims_data_getter
-    from databases.lims2 import LIMS2SessionInfo
-else:
-    from np_session.components import paths
-    from np_session.databases.data_getters import lims_data_getter
-    from np_session.databases.lims2 import LIMS2SessionInfo 
+from np_session.components import paths
+from np_session.databases.data_getters import lims_data_getter
+from np_session.databases.lims2 import LIMS2SessionInfo
 
 logger = np_logging.getLogger(__name__)
 

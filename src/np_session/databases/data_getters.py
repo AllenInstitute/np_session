@@ -15,12 +15,6 @@ import pathlib
 import psycopg2
 import psycopg2.extras
 
-if __name__ == "__main__":
-    ...
-else:
-    ...
-
-
 class NoBehaviorSessionError(Exception):
     pass
 

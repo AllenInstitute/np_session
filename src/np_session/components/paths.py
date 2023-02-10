@@ -1,6 +1,5 @@
 import pathlib
 
-
 NPEXP_ROOT = pathlib.Path("//allen/programs/mindscope/workgroups/np-exp")
 INCOMING_ROOT = pathlib.Path(
     "//allen/programs/braintv/production/incoming/neuralcoding"

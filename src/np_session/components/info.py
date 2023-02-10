@@ -10,8 +10,6 @@ import pathlib
 import re
 from typing import Any, Callable, ClassVar, Type, Union
 
-import np_logging
-
 from np_session.databases.lims2 import (LIMS2MouseInfo, LIMS2ProjectInfo,
                                         LIMS2UserInfo)
 from np_session.databases.mtrain import MTrain
