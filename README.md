@@ -1,10 +1,7 @@
 # np_session
 
 
-***
-
 **For use on internal Allen Institute network**
-
 ***
 
 
