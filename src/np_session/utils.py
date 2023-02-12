@@ -14,7 +14,7 @@ from typing import Literal, Union
 import np_logging
 import requests
 
-from np_session.components import paths
+import np_session.components.paths as paths
 from np_session.databases.data_getters import lims_data_getter
 from np_session.databases.lims2 import LIMS2SessionInfo
 
@@ -62,7 +62,11 @@ def is_valid_session_id(session_id: int | str) -> bool:
     >>> is_valid_session_id('abcdefg')
     False
     """
-    return bool(LIMS2SessionInfo(str(session_id)))
+    try:
+        _ = int(session_id)
+    except ValueError:
+        return False
+    return bool(LIMS2SessionInfo(session_id))
 
 
 def lims_session_id(path: PathLike) -> str | None:
