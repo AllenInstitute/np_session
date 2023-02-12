@@ -55,8 +55,8 @@ class Session:
     714916854
     >>> session.is_ecephys_session
     True
-    >>> session.rig.acq # (hostnames reflect the computers used during the session, not necessarily the current machines)
-    'W10DT713843'
+    >>> session.rig.acq # hostnames reflect the computers used during the session, not necessarily the current machines
+    'W10DT05515'
 
     Some properties are returned as objects with richer information:
     - `pathlib` objects for filesystem paths:
@@ -85,7 +85,8 @@ class Session:
     '576323'
     >>> str(session.project)
     'NeuropixelVisualBehavior'
-
+    >>> str(session.rig)        # see np_config.Rig
+    'NP.0'
     """
     def __lt__(self, other: Session) -> bool:
         if not hasattr(other, 'date'):
@@ -131,7 +132,6 @@ class Session:
         LIMS2SessionInfo(1116941914)
         >>> str(Session(1116941914).lims)
         '1116941914'
-
         """
         if not hasattr(self, "_lims"):
             try:
@@ -195,7 +195,7 @@ class Session:
     def update_hostnames_for_replaced_computers(self) -> None:
         for comp in ("sync", "stim", "mon", "acq"):
             if replaced := old_hostname(f"{self._rig.id}-{comp.capitalize()}", self.date):
-                setattr(self, f"_{comp}", replaced)
+                setattr(self._rig, f"_{comp}", replaced)
 
     @property
     def is_ecephys_session(self) -> bool | None:

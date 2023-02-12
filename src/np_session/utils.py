@@ -47,12 +47,11 @@ def old_hostname(comp_id: str, date: datetime.date) -> str | None:
 
     For a date after the hostname changed, nothing is returned: 
     >>> old_hostname('NP.1-Acq', datetime.date(2023, 6, 18))
-    None
 
     """
     if not (replaced := REPLACED_COMP_ID.get(comp_id)):
         return
-    if session_date < replaced[0]:
+    if date < replaced[0]:
         return replaced[1]
 
 class Host(enum.Enum):

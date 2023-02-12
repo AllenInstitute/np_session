@@ -17,8 +17,8 @@ from np_session import Session
 'BrainTV Neuropixels Visual Behavior'
 >>> session.is_ecephys_session
 True
->>> session.rig.acq # (see `np_config.Rig`)
-'W10DT713843'
+>>> session.rig.acq # hostnames reflect the computers used during the session, not necessarily the current machines
+'W10DT05515'
 
 # some properties are objects with richer information:
 
@@ -47,6 +47,6 @@ LIMS2MouseInfo(576323)
 '576323'
 >>> str(session.project)
 'NeuropixelVisualBehavior'
->>> str(session.rig)
+>>> str(session.rig)        # from `np_config` package
 'NP.0'
 ```
