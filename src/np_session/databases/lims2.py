@@ -18,6 +18,7 @@ from __future__ import annotations
 import abc
 import collections
 import datetime
+import doctest
 import functools
 import json
 import pathlib
@@ -134,9 +135,9 @@ class LIMS2MouseInfo(LIMS2InfoBaseClass):
     '366122'
 
     >>> mouse['id']
-    657428270
+    657428267
 
-    >>> mouse['project_name']
+    >>> mouse.project_name
     'NeuropixelPlatformDevelopment'
     """
 
@@ -359,6 +360,4 @@ def info_classes_from_session_folder(
 
 
 if __name__ == "__main__":
-    mouse = LIMS2MouseInfo(366122)
-    e, *_ = info_classes_from_session_folder("1190094328_611166_20220707")
-    print(e.keys())
+    doctest.testmod()
