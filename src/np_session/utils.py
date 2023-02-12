@@ -10,8 +10,9 @@ import pathlib
 import re
 import subprocess
 import sys
-from typing import Literal, Union
+from typing import Union
 
+from typing_extensions import Literal
 from backports.cached_property import cached_property
 
 import np_logging
