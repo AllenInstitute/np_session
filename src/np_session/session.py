@@ -8,6 +8,8 @@ import os
 import pathlib
 from typing import Any, Generator, Union
 
+from backports.cached_property import cached_property
+
 import np_config
 import np_logging
 from typing_extensions import Literal
@@ -156,7 +158,7 @@ class Session:
                 self._user = None
         return self._user
     
-    @functools.cached_property
+    @cached_property
     def date(self) -> datetime.date:
         d = self.folder.split("_")[2]
         date = datetime.date(year=int(d[:4]), month=int(d[4:6]), day=int(d[6:]))
@@ -233,7 +235,7 @@ class Session:
         "Expected default path, or alternative if one exists - see `qc_paths` for all available"
         return self.qc_paths[0] if self.qc_paths else QC_PATHS[0] / self.folder
     
-    @functools.cached_property
+    @cached_property
     def qc_paths(self) -> list[pathlib.Path]:
         "Any QC folders that exist"
         return [path / self.folder for path in QC_PATHS if (path / self.folder).exists()]    
@@ -248,7 +250,7 @@ class Session:
                 self._project = None
         return self._project
     
-    @functools.cached_property
+    @cached_property
     def lims_data_getter(self) -> dg.data_getter | None:
         try:
             return dg.lims_data_getter(self.id)

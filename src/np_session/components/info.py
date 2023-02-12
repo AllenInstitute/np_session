@@ -45,7 +45,7 @@ class Mouse(InfoBaseClass):
                 self._lims = {}
         return self._lims
     
-    @functools.cached_property
+    @cached_property
     def mtrain(self) -> MTrain:
         "Lims info for the mouse."
         return MTrain(self.id)
@@ -55,7 +55,7 @@ class User(InfoBaseClass):
     def __init__(self, lims_user_id: str):
         self.id = str(lims_user_id)
         
-    @functools.cached_property
+    @cached_property
     def lims(self) -> LIMS2UserInfo | dict:
         "Lims info for the user."
         if not hasattr(self, "_lims"):
@@ -92,7 +92,7 @@ class Project(InfoBaseClass):
     def __init__(self, lims_project_name: str):
         self.id = str(lims_project_name)
         
-    @functools.cached_property
+    @cached_property
     def lims(self) -> LIMS2ProjectInfo:
         "Lims info for the project."
         return LIMS2ProjectInfo(self.id)

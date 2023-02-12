@@ -12,6 +12,8 @@ import subprocess
 import sys
 from typing import Literal, Union
 
+from backports.cached_property import cached_property
+
 import np_logging
 import requests
 
