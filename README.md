@@ -9,8 +9,8 @@ from np_session import Session
 
 # initialize with a lims session ID or a string containing one: 
 >>> session = Session('c:/1116941914_surface-image1-left.png') 
->>> session.id
-'1116941914'
+>>> session.lims.id
+1116941914
 >>> session.folder
 '1116941914_576323_20210721'
 >>> session.project
