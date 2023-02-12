@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import doctest
 import enum
 import functools
@@ -29,6 +30,30 @@ RE_SESSION_ID = re.compile("[0-9]{8,}")
 RE_FOLDER = re.compile("[0-9]{8,}_[0-9]{6}_[0-9]{8}")
 RE_PROBES = re.compile("(?<=_probe)_?(([A-F]+)|([0-5]))")
 
+REPLACED_COMP_ID: dict[str, tuple[datetime.date, str]] = {
+    'NP.0-Acq': (datetime.date(2022, 10, 18), "W10DT05515"),
+    'NP.1-Acq': (datetime.date(2022, 10, 27), "W10DT05501"),
+    'NP.2-Acq': (datetime.date(2022, 7, 14), "W10DT05517"),
+    'NP.0-Stim': (datetime.date(2023, 2, 7), "W10DT713938"),
+    'NP.1-Stim': (datetime.date(2023, 1, 19), "W10DT713942"),
+}
+
+def old_hostname(comp_id: str, date: datetime.date) -> str | None:
+    """Return the hostname for a computer that was replaced, if `date` predates the switchover.
+    
+    For a date before the hostname changed:
+    >>> old_hostname('NP.1-Acq', datetime.date(2022, 6, 18))
+    'W10DT05501'
+
+    For a date after the hostname changed, nothing is returned: 
+    >>> old_hostname('NP.1-Acq', datetime.date(2023, 6, 18))
+    None
+
+    """
+    if not (replaced := REPLACED_COMP_ID.get(comp_id)):
+        return
+    if session_date < replaced[0]:
+        return replaced[1]
 
 class Host(enum.Enum):
     LIMS = "lims2"

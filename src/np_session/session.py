@@ -55,11 +55,16 @@ class Session:
     714916854
     >>> session.is_ecephys_session
     True
+    >>> session.rig.acq # (hostnames reflect the computers used during the session, not necessarily the current machines)
+    'W10DT713843'
 
     Some properties are returned as objects with richer information:
     - `pathlib` objects for filesystem paths:
     >>> session.lims_path.as_posix()
     '//allen/programs/braintv/production/visualbehavior/prod0/specimen_1098595957/ecephys_session_1116941914'
+    >>> session.data_dict['storage_directory'].as_posix()
+    '//allen/programs/braintv/production/visualbehavior/prod0/specimen_1098595957/ecephys_session_1116941914'
+
 
     - `datetime` objects for easy date manipulation:
     >>> session.date
@@ -162,11 +167,11 @@ class Session:
         "Rig object with computer info and paths, can also be used as a string."
         if not hasattr(self, "_rig"):
             self._rig = None
-            while not self._rig:
+            while not self.rig:
                 
                 # try from current rig first
                 with contextlib.suppress(ValueError):
-                    self._rig = np_config.Rig()
+                    self.rig = np_config.Rig()
                     continue
                     
                 # TODO try from platform json
@@ -174,13 +179,24 @@ class Session:
                 # try from lims 
                 rig_id: str | None = self.data_dict.get('rig')
                 if rig_id:
-                    self._rig = np_config.Rig(rig_id)
+                    self.rig = np_config.Rig(rig_id)
                     continue
                 
                 break
-        # TODO override self._rig._stim and ._acq if session date is before comp switch
         return self._rig
     
+    @rig.setter
+    def rig(self, value: np_config.Rig) -> None:
+        if not isinstance(value, np_config.Rig):
+            raise TypeError(f'Expected `rig` to be an instance of `np_config.Rig`, not {type(value)}')
+        self._rig = value
+        self.update_hostnames_for_replaced_computers()
+
+    def update_hostnames_for_replaced_computers(self) -> None:
+        for comp in ("sync", "stim", "mon", "acq"):
+            if replaced := old_hostname(f"{self._rig.id}-{comp.capitalize()}", self.date):
+                setattr(self, f"_{comp}", replaced)
+
     @property
     def is_ecephys_session(self) -> bool | None:
         """False if behavior session, None if unsure."""
