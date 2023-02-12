@@ -1,8 +1,7 @@
 # np_session
 
 
-**For use on internal Allen Institute network**
-***
+### *For use on internal Allen Institute network*
 
 
 ```python
