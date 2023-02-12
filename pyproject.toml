@@ -21,6 +21,7 @@ typing-extensions = "*"
 psycopg2-binary = "^2"
 requests = "^2"
 np_logging = ">=0.3.8"
+"backports.cached-property" = "*"
 
 [tool.poetry.group.dev.dependencies]
 mypy = "*"
