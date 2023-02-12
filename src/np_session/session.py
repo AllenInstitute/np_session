@@ -195,8 +195,11 @@ class Session:
         self.update_hostnames_for_replaced_computers()
 
     def update_hostnames_for_replaced_computers(self) -> None:
+        if not self._rig:
+            return
         for comp in ("sync", "stim", "mon", "acq"):
-            if replaced := old_hostname(f"{self._rig.id}-{comp.capitalize()}", self.date):
+            replaced = old_hostname(f"{self._rig.id}-{comp.capitalize()}", self.date)
+            if replaced:
                 setattr(self._rig, f"_{comp}", replaced)
 
     @property

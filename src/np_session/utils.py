@@ -52,7 +52,8 @@ def old_hostname(comp_id: str, date: datetime.date) -> str | None:
     >>> old_hostname('NP.1-Acq', datetime.date(2023, 6, 18))
 
     """
-    if not (replaced := REPLACED_COMP_ID.get(comp_id)):
+    replaced = REPLACED_COMP_ID.get(comp_id)
+    if replaced is None:
         return
     if date < replaced[0]:
         return replaced[1]

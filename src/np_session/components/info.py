@@ -10,6 +10,8 @@ import pathlib
 import re
 from typing import Any, Callable, ClassVar, Type, Union
 
+from backports.cached_property import cached_property
+
 from np_session.databases.lims2 import (LIMS2MouseInfo, LIMS2ProjectInfo,
                                         LIMS2UserInfo)
 from np_session.databases.mtrain import MTrain

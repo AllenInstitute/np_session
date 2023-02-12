@@ -32,6 +32,18 @@ tests = ["attrs[tests-no-zope]", "zope.interface"]
 tests-no-zope = ["cloudpickle", "cloudpickle", "hypothesis", "hypothesis", "mypy (>=0.971,<0.990)", "mypy (>=0.971,<0.990)", "pympler", "pympler", "pytest (>=4.3.0)", "pytest (>=4.3.0)", "pytest-mypy-plugins", "pytest-mypy-plugins", "pytest-xdist[psutil]", "pytest-xdist[psutil]"]
 
 [[package]]
+name = "backports-cached-property"
+version = "1.0.2"
+description = "cached_property() - computed once per instance, cached as attribute"
+category = "main"
+optional = false
+python-versions = ">=3.6.0"
+files = [
+    {file = "backports.cached-property-1.0.2.tar.gz", hash = "sha256:9306f9eed6ec55fd156ace6bc1094e2c86fae5fb2bf07b6a9c00745c656e75dd"},
+    {file = "backports.cached_property-1.0.2-py3-none-any.whl", hash = "sha256:baeb28e1cd619a3c9ab8941431fe34e8490861fb998c6c4590693d50171db0cc"},
+]
+
+[[package]]
 name = "black"
 version = "23.1.0"
 description = "The uncompromising code formatter."
@@ -423,18 +435,19 @@ files = [
 
 [[package]]
 name = "np-config"
-version = "0.4.13"
+version = "0.4.14"
 description = "Config fetching from file or Zookeeper - with local backup - repackaging code from AIBS mpeconfig."
 category = "main"
 optional = false
 python-versions = ">=3.7,<4.0"
 files = [
-    {file = "np_config-0.4.13-py3-none-any.whl", hash = "sha256:c03b9dacdb386accdcd9a85c40f623ddaf1b9103cd9731048954051e1c002767"},
-    {file = "np_config-0.4.13.tar.gz", hash = "sha256:68d2428982a7be613ee4a413e740141cc66d951362c1f22de072fc726044a67a"},
+    {file = "np_config-0.4.14-py3-none-any.whl", hash = "sha256:12097a66f1bd560e7a55946eb1afdbec98beff31d0373a10b3a687e612c3dcfc"},
+    {file = "np_config-0.4.14.tar.gz", hash = "sha256:756a9f88166946a2afcf89776b92e0bf5aa1cd3fa45264cbad396d738d7845bb"},
 ]
 
 [package.dependencies]
 appdirs = ">=1,<2"
+"backports.cached-property" = "*"
 kazoo = ">=2.8,<2.9"
 pyyaml = ">=5,<7"
 requests = ">=2,<3"
@@ -442,14 +455,14 @@ typing-extensions = ">=4"
 
 [[package]]
 name = "np-logging"
-version = "0.3.8"
+version = "0.3.9"
 description = "Pre-configured file, web, and email logging for Mindscope neuropixels projects, repackaging code from AIBS mpeconfig."
 category = "main"
 optional = false
 python-versions = ">=3.7,<4.0"
 files = [
-    {file = "np_logging-0.3.8-py3-none-any.whl", hash = "sha256:8bc87f56ee3188fbd15fe48ab1a59eaea8c6fdd09071dcd66dd1827eee644590"},
-    {file = "np_logging-0.3.8.tar.gz", hash = "sha256:db1dfb266c1cbb3ede40f0dffe41a7f97d71dca2ae1787c8c9864aa747e1b0dc"},
+    {file = "np_logging-0.3.9-py3-none-any.whl", hash = "sha256:a829cac7349cccab62cfe32ebcf58ede67ed01dbf6a1310bd18807ed0f57cd65"},
+    {file = "np_logging-0.3.9.tar.gz", hash = "sha256:b70841ce65febb3bb837f03c9732e7692f5787160a395ab209502e3e4eef30e6"},
 ]
 
 [package.dependencies]
@@ -911,4 +924,4 @@ testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.7"
-content-hash = "70ad2797556ca8c7cbf6d5a510d9cade77d5fadfe35cde8ae91a38c551e97a82"
+content-hash = "20891f157f70be38b1d784d869f2d7c49f942fa89b35748410464471d85b1f3e"
