@@ -1,3 +1,13 @@
+# np_session
+
+
+***
+
+**For use on internal Allen Institute network**
+
+***
+
+
 ```python
 from np_session import Session
 
