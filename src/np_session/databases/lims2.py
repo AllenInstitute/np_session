@@ -23,7 +23,7 @@ import functools
 import json
 import pathlib
 import re
-from typing import Any, Callable, Type, Union
+from typing import Any, Callable, Type
 
 import np_logging
 import requests
@@ -330,7 +330,7 @@ def generate_hab_session(
     return LIMS2SessionInfo(new_session_id)
 
 
-def find_session_folder_string(path: Union[str, pathlib.Path]) -> str | None:
+def find_session_folder_string(path: str | pathlib.Path) -> str | None:
     """Extract [8+digit session ID]_[6-digit mouse ID]_[6-digit date
     str] from a file or folder path"""
     session_reg_exp = r"[0-9]{8,}_[0-9]{6}_[0-9]{8}"

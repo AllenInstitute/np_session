@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime
 import json
 import warnings
-from typing import Optional, Union
+from typing import Optional
 
 import requests
 
@@ -65,7 +65,7 @@ class MTrain:
         ]
 
     @state.setter
-    def state(self, value: Union[dict, int, str]):
+    def state(self, value: dict | int | str):
         """Allows switching to one of the states in the current regimen.
 
         To change regimen, use set_regimen_and_stage()
@@ -163,7 +163,7 @@ class MTrain:
         )
 
     def set_regimen_and_stage(
-        self, regimen: Union[dict, int, str] = None, stage: Union[dict, int, str] = None
+        self, regimen:  Optional[dict | int | str] = None, stage: Optional[dict | int | str] = None
     ):
         """Requires a regimen dict, id (str/int) or name (str), plus stage dict, id (str/int) or name (str)"""
 
@@ -251,7 +251,7 @@ class MTrain:
                 return item
 
     @stage.setter
-    def stage(self, value: Union[str, int]):
+    def stage(self, value: str | int):
         """Accepts stage id (int/str) or name (str)"""
 
         state_match = None
@@ -280,7 +280,7 @@ class MTrain:
         return self.stage
 
     @script.setter
-    def script(self, value: Union[str, int]) -> dict:
+    def script(self, value: str | int) -> None:
         """Accepts stage id (int/str) or name (str)
         Re-routes to stage property
         """
