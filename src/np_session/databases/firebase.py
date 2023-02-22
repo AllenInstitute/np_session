@@ -95,20 +95,20 @@ class State(MutableMapping):
 
     def getState(self, key: str) -> AcceptedType:
         """
-        retrieves the state of the key for the session
+        wrapper that retrieves the state of the key for the session
         """
 
         return self.__getitem__(key)
 
     def updateState(self, key: str, state: AcceptedType) -> None:
         """
-        updates the state of the key for the session
+        wrapper that updates the state of the key for the session
         """
         self.__setitem__(key, state)
 
     def deleteState(self, key: str) -> None:
         """
-        removes the state field for the session
+        wrapper that removes the state field for the session
         """
         self.__delitem__(key)
 
