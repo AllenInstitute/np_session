@@ -22,6 +22,7 @@ psycopg2-binary = "^2"
 requests = "^2"
 np_logging = ">=0.3.8"
 "backports.cached-property" = "*"
+redis = "^4.5.1"
 
 [tool.poetry.group.dev.dependencies]
 mypy = "*"
