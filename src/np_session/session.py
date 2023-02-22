@@ -19,6 +19,7 @@ from np_session.components.paths import *
 from np_session.databases import data_getters as dg
 from np_session.databases import lims2 as lims
 from np_session.databases import mtrain
+from np_session.databases import State
 from np_session.utils import *
 
 logger = np_logging.getLogger(__name__)
@@ -295,6 +296,10 @@ class Session:
         """Foraging ID from MTrain (if an MTrain session is found)."""
         return self.mtrain.get("id", None)
 
+    @cached_property
+    def state(self) -> State:
+        return State(self.id)
+        
 def generate_session(
     mouse: str | int | Mouse,
     user: str | User,
