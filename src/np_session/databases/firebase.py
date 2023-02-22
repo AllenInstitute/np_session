@@ -24,10 +24,10 @@ class State(MutableMapping):
     >>> state.insertDocument(value)
     >>> state.data[state.id]['qc_state']
     True
-    >>> state.updateData('qc_state', False)
+    >>> state.updateState('qc_state', False)
     >>> state.data[state.id]['qc_state']
     False
-    >>> state.deleteData('qc_state')
+    >>> state.deleteState('qc_state')
     >>> len(list(state.data[state.id].keys()))
     2
     """
@@ -84,7 +84,7 @@ class State(MutableMapping):
     def __iter__(self) -> Iterator[str]:
         return iter(self.data)
     
-    def insertData(self, key: str, value: AcceptedType) -> None: 
+    def setState(self, key: str, value: AcceptedType) -> None: 
         self.__setitem__(key, value)
 
     def insertDocument(self, value: dict) -> None:
@@ -93,22 +93,22 @@ class State(MutableMapping):
         """
         self.session_doc.set(value)
 
-    def getData(self, key: str) -> AcceptedType:
+    def getState(self, key: str) -> AcceptedType:
         """
         retrieves the state of the key for the session
         """
 
         return self.__getitem__(key)
 
-    def updateData(self, key: str, state: AcceptedType) -> None:
+    def updateState(self, key: str, state: AcceptedType) -> None:
         """
         updates the state of the key for the session
         """
         self.__setitem__(key, state)
 
-    def deleteData(self, key: str) -> None:
+    def deleteState(self, key: str) -> None:
         """
-        removes the field for the session
+        removes the state field for the session
         """
         self.__delitem__(key)
 
