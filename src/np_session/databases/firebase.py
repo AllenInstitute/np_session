@@ -34,7 +34,7 @@ class State(MutableMapping):
     db: ClassVar
     def __init__(self, lims_session_id: int) -> None:
         self.id = str(lims_session_id)
-        self.sessionDict = {}
+
         try:
             _ = self.db
         except AttributeError:
