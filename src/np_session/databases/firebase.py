@@ -34,7 +34,7 @@ class State(MutableMapping):
     db: ClassVar
     def __init__(self, lims_session_id: int) -> None:
         self.id = str(lims_session_id)
-
+        self.sessionDict = {}
         try:
             _ = self.db
         except AttributeError:
@@ -58,10 +58,7 @@ class State(MutableMapping):
 
     @property
     def data(self) -> dict[str, AcceptedType]:
-        session_dict = {}
-        session_dict.setdefault(self.session_doc.id, self.session_doc.get().to_dict())
-
-        return session_dict
+        return {self.session_doc.id: self.session_doc.get().to_dict()}
 
     def __getitem__(self, key: str) -> dict:
         return self.data[key]
@@ -85,6 +82,9 @@ class State(MutableMapping):
         return iter(self.data)
     
     def setState(self, key: str, value: AcceptedType) -> None: 
+        """
+        sets the state of the key for the session
+        """
         self.__setitem__(key, value)
 
     def insertDocument(self, value: dict) -> None:
