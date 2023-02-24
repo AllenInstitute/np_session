@@ -34,21 +34,22 @@ RE_FOLDER = re.compile("[0-9]{8,}_[0-9]{6}_[0-9]{8}")
 RE_PROBES = re.compile("(?<=_probe)_?(([A-F]+)|([0-5]))")
 
 REPLACED_COMP_ID: dict[str, tuple[datetime.date, str]] = {
-    'NP.0-Acq': (datetime.date(2022, 10, 18), "W10DT05515"),
-    'NP.1-Acq': (datetime.date(2022, 10, 27), "W10DT05501"),
-    'NP.2-Acq': (datetime.date(2022, 7, 14), "W10DT05517"),
-    'NP.0-Stim': (datetime.date(2023, 2, 7), "W10DT713938"),
-    'NP.1-Stim': (datetime.date(2023, 1, 19), "W10DT713942"),
+    "NP.0-Acq": (datetime.date(2022, 10, 18), "W10DT05515"),
+    "NP.1-Acq": (datetime.date(2022, 10, 27), "W10DT05501"),
+    "NP.2-Acq": (datetime.date(2022, 7, 14), "W10DT05517"),
+    "NP.0-Stim": (datetime.date(2023, 2, 7), "W10DT713938"),
+    "NP.1-Stim": (datetime.date(2023, 1, 19), "W10DT713942"),
 }
+
 
 def old_hostname(comp_id: str, date: datetime.date) -> str | None:
     """Return the hostname for a computer that was replaced, if `date` predates the switchover.
-    
+
     For a date before the hostname changed:
     >>> old_hostname('NP.1-Acq', datetime.date(2022, 6, 18))
     'W10DT05501'
 
-    For a date after the hostname changed, nothing is returned: 
+    For a date after the hostname changed, nothing is returned:
     >>> old_hostname('NP.1-Acq', datetime.date(2023, 6, 18))
 
     """
@@ -57,6 +58,7 @@ def old_hostname(comp_id: str, date: datetime.date) -> str | None:
         return
     if date < replaced[0]:
         return replaced[1]
+
 
 class Host(enum.Enum):
     LIMS = "lims2"
@@ -196,28 +198,27 @@ def is_new_ephys_folder(path: PathLike) -> bool:
 
 
 def files_manifest(
-        project_name: str,
-        session_str: str = '',
-        session_type: Literal['D1', 'D2', 'habituation'] = 'D1',
-    ) -> dict[str, dict[str,str]]:
+    project_name: str,
+    session_str: str = "",
+    session_type: Literal["D1", "D2", "habituation"] = "D1",
+) -> dict[str, dict[str, str]]:
     """Return a list of files that could be entered directly into a platform json `files` key.
-    - project_name: corresponds to a manifet template 
+    - project_name: corresponds to a manifet template
     - session_str: [lims_id]_[mouse_id]_[session_id], will replace a placeholder in a manifest template
     """
-    if session_type not in ['D1', 'habituation', 'D2']:
-        raise ValueError(f'{session_type} is not a valid session type')
-    
+    if session_type not in ["D1", "habituation", "D2"]:
+        raise ValueError(f"{session_type} is not a valid session type")
+
     template = paths.TEMPLATES_ROOT / session_type / f"{project_name}.json"
-    
+
     x = json.loads(template.read_bytes())
     # convert dict to str
     # replace % with session string
     # switch ' and " so we can convert str back to dict with json.loads()
-    return json.loads(str(x).replace('%', str(session_str)).replace('\'','"'))
+    return json.loads(str(x).replace("%", str(session_str)).replace("'", '"'))
 
 
 if __name__ == "__main__":
-
     if is_connected("lims2"):
         doctest.testmod()
         # optionflags=(doctest.ELLIPSIS, doctest.NORMALIZE_WHITESPACE, doctest.IGNORE_EXCEPTION_DETAIL)

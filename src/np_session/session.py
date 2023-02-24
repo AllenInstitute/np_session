@@ -72,7 +72,7 @@ class Session:
     - `datetime` objects for easy date manipulation:
     >>> session.date
     datetime.date(2021, 7, 21)
-    
+
     - dictionaries from lims (loaded lazily):
     >>> session.mouse
     Mouse(576323)
@@ -91,34 +91,36 @@ class Session:
     >>> str(session.rig)        # see np_config.Rig
     'NP.0'
     """
+
     def __lt__(self, other: Session) -> bool:
-        if not hasattr(other, 'date'):
+        if not hasattr(other, "date"):
             return NotImplemented
         return self.date < other.date
 
     def __str__(self) -> str:
         return self.folder
-    
+
     def __repr__(self) -> str:
-        return f'{self.__class__.__name__}({self.folder!r})'
+        return f"{self.__class__.__name__}({self.folder!r})"
 
     def __init__(self, path_or_session: PathLike | int | LIMS2SessionInfo):
-        
         path_or_session = str(path_or_session)
-        
+
         path_or_session = pathlib.Path(path_or_session)
-        
+
         np_folder = folder(path_or_session)
 
         if not np_folder:
             np_folder = folder_from_lims_id(path_or_session)
 
         if np_folder is None:
-            raise SessionError(f"{path_or_session} does not contain a valid lims session id or session folder string")
+            raise SessionError(
+                f"{path_or_session} does not contain a valid lims session id or session folder string"
+            )
 
         self.folder = np_folder
         self.id = int(self.folder.split("_")[0])
-        
+
         if isinstance(path_or_session, LIMS2SessionInfo):
             self._lims = path_or_session
 
@@ -148,17 +150,17 @@ class Session:
         if not hasattr(self, "_mouse"):
             self._mouse = Mouse(self.folder.split("_")[1])
         return self._mouse
-    
+
     @property
     def user(self) -> User | None:
         if not hasattr(self, "_user"):
-            lims_user_id = self.lims.get('operator', {}).get('login', '')
+            lims_user_id = self.lims.get("operator", {}).get("login", "")
             if lims_user_id:
                 self._user = User(lims_user_id)
             else:
                 self._user = None
         return self._user
-    
+
     @cached_property
     def date(self) -> datetime.date:
         d = self.folder.split("_")[2]
@@ -171,27 +173,28 @@ class Session:
         if not hasattr(self, "_rig"):
             self._rig = None
             while not self.rig:
-                
                 # try from current rig first
                 with contextlib.suppress(ValueError):
                     self.rig = np_config.Rig()
                     continue
-                    
+
                 # TODO try from platform json
-                
-                # try from lims 
-                rig_id: str | None = self.data_dict.get('rig')
+
+                # try from lims
+                rig_id: str | None = self.data_dict.get("rig")
                 if rig_id:
                     self.rig = np_config.Rig(rig_id)
                     continue
-                
+
                 break
         return self._rig
-    
+
     @rig.setter
     def rig(self, value: np_config.Rig) -> None:
         if not isinstance(value, np_config.Rig):
-            raise TypeError(f'Expected `rig` to be an instance of `np_config.Rig`, not {type(value)}')
+            raise TypeError(
+                f"Expected `rig` to be an instance of `np_config.Rig`, not {type(value)}"
+            )
         self._rig = value
         self.update_hostnames_for_replaced_computers()
 
@@ -228,32 +231,37 @@ class Session:
             else:
                 self._lims_path = pathlib.Path("/" + path)
         return self._lims_path
-    
+
     @property
     def z_path(self) -> pathlib.Path:
-        "Path in Sync neuropixels_data (aka Z:) (may not exist)) "
-        return np_config.local_to_unc(self.rig.sync, NEUROPIXELS_DATA_RELATIVE_PATH) / self.folder
-    
+        "Path in Sync neuropixels_data (aka Z:) (may not exist))"
+        return (
+            np_config.local_to_unc(self.rig.sync, NEUROPIXELS_DATA_RELATIVE_PATH)
+            / self.folder
+        )
+
     @property
     def qc_path(self) -> pathlib.Path:
         "Expected default path, or alternative if one exists - see `qc_paths` for all available"
         return self.qc_paths[0] if self.qc_paths else QC_PATHS[0] / self.folder
-    
+
     @cached_property
     def qc_paths(self) -> list[pathlib.Path]:
         "Any QC folders that exist"
-        return [path / self.folder for path in QC_PATHS if (path / self.folder).exists()]    
-    
+        return [
+            path / self.folder for path in QC_PATHS if (path / self.folder).exists()
+        ]
+
     @property
     def project(self) -> Project | None:
         if not hasattr(self, "_project"):
-            lims_project_name = self.lims.get('project', {}).get('code', '')
+            lims_project_name = self.lims.get("project", {}).get("code", "")
             if lims_project_name:
                 self._project = Project(lims_project_name)
             else:
                 self._project = None
         return self._project
-    
+
     @cached_property
     def lims_data_getter(self) -> dg.data_getter | None:
         try:
@@ -299,7 +307,8 @@ class Session:
     @cached_property
     def state(self) -> State:
         return State(self.id)
-        
+
+
 def generate_session(
     mouse: str | int | Mouse,
     user: str | User,
@@ -315,12 +324,13 @@ def generate_session(
         lims_session = lims.generate_hab_session(mouse=mouse.lims, user=user.lims)
     session = Session(lims_session)
     # assign instances with data already fetched from lims:
-    session._mouse = mouse  
+    session._mouse = mouse
     session._user = user
     return session
 
+
 def sessions(
-    path = NPEXP_ROOT,
+    path=NPEXP_ROOT,
     project: str | Projects = None,
     session_type: Literal["ecephys", "behavior"] = "ecephys",
 ) -> Generator[Session, None, None]:
@@ -334,7 +344,6 @@ def sessions(
         project = getattr(Projects, project)
 
     for path in NPEXP_PATH.iterdir():
-
         if not path.is_dir():
             continue
         try:
@@ -358,7 +367,6 @@ def sessions(
 
 
 if __name__ == "__main__":
-
     if is_connected("lims2"):
         doctest.testmod()
         # optionflags=(doctest.ELLIPSIS, doctest.NORMALIZE_WHITESPACE, doctest.IGNORE_EXCEPTION_DETAIL)

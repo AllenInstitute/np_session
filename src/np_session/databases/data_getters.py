@@ -15,6 +15,7 @@ import pathlib
 import psycopg2
 import psycopg2.extras
 
+
 class NoBehaviorSessionError(Exception):
     pass
 
@@ -183,7 +184,6 @@ class data_getter:
     """
 
     def __init__(self, exp_id=None, base_dir=None, cortical_sort=False):
-
         self.data_dict = {}
         self.cortical_sort = cortical_sort
         self.connect(exp_id, base_dir)
@@ -207,7 +207,6 @@ class data_getter:
 
 class lims_data_getter(data_getter):
     def connect(self, exp_id, base_dir):
-
         # set up connection to lims
         self.con = psycopg2.connect(
             dbname="lims2",
@@ -409,7 +408,6 @@ class lims_data_getter(data_getter):
 
 class local_data_getter(data_getter):
     def connect(self, exp_id, base_dir):
-
         if os.path.exists(base_dir):
             self.base_dir = base_dir
         else:
@@ -453,13 +451,11 @@ class local_data_getter(data_getter):
         self.data_dict["rig"] = self.get_rig_from_platform()
 
     def get_platform_info(self):
-
         platform_file = self.data_dict["EcephysPlatformFile"]
         with open(platform_file, "r") as file:
             self.platform_info = json.load(file)
 
     def get_rig_from_platform(self):
-
         if not hasattr(self, "platform_info"):
             self.get_platform_info()
 
@@ -508,10 +504,8 @@ class local_data_getter(data_getter):
                 self.data_dict["lfp" + probeID] = lfp_base
 
     def get_image_data(self):
-
         # GET PROBE DEPTH IMAGES
         for probeID in self.data_dict["data_probes"]:
-
             probe_base = self.data_dict["probe" + probeID]
             probe_depth_image = glob_file(os.path.join(probe_base, "probe_depth*.png"))
             if probe_depth_image is not None:
@@ -566,10 +560,10 @@ def convert_path_str_to_pathlib(data_dict_orig) -> dict:
     >>> test = convert_path_str_to_pathlib(orig)
     >>> test[0].as_posix()
     '//allen/programs/mindscope'
-    
+
     >>> test[0] != orig[0]
     True
-    
+
     >>> test = convert_path_str_to_pathlib({1: '/allen/programs/mindscope'})
     >>> test[1].as_posix()
     '//allen/programs/mindscope'
@@ -583,6 +577,8 @@ def convert_path_str_to_pathlib(data_dict_orig) -> dict:
             data_dict[k] = pathlib.Path(v)
     return data_dict
 
+
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

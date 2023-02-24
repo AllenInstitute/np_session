@@ -30,6 +30,7 @@ import requests
 
 logger = np_logging.getLogger(__name__)
 
+
 def requester(url: str, *args) -> dict:
     request = url.format(*args)  # .replace(";", "%3B")
     logger.debug(f"Requesting {request}")
@@ -117,11 +118,11 @@ class LIMS2InfoBaseClass(collections.UserDict, abc.ABC):
     def lims_id(self):
         "LIMS2 ID for the object, usually different to the np_id."
         return NotImplemented
-    
+
     @property
     def id(self) -> str | int:
         return self.lims_id
-    
+
     # end of baseclass properties & methods ------------------------------ #
 
 
@@ -248,7 +249,9 @@ class LIMS2SessionInfo(LIMS2InfoBaseClass):
         if not hasattr(self, "_session"):
             _ = self.fetch()  # trigger fetching data from lims
         self.__class__ = (
-            LIMS2EcephysSessionInfo if self._session == "ecephys" else LIMS2BehaviorSessionInfo
+            LIMS2EcephysSessionInfo
+            if self._session == "ecephys"
+            else LIMS2BehaviorSessionInfo
         )
 
 
@@ -301,6 +304,7 @@ def generate_ecephys_session(
     if not new_session_id:
         raise ValueError(f"Failed to create session: {decoded_dict}")
     return LIMS2SessionInfo(new_session_id)
+
 
 def generate_hab_session(
     mouse: str | int | LIMS2MouseInfo,
