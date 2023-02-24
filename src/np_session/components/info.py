@@ -9,7 +9,7 @@ from backports.cached_property import cached_property
 from np_session.databases.lims2 import (LIMS2MouseInfo, LIMS2ProjectInfo,
                                         LIMS2UserInfo)
 from np_session.databases.mtrain import MTrain
-
+from np_session.databases import State
 
 class InfoBaseClass(abc.ABC):
     "Store details for an object from various databases. The commonly-used format of its name, e.g. '366122' for a mouse ID, can be obtained by converting to str()."
@@ -46,6 +46,14 @@ class Mouse(InfoBaseClass):
         "Lims info for the mouse."
         return MTrain(self.id)
     
+    @property
+    def project(self) -> str | None:
+        "Project associated with the mouse."
+        return self.lims.get("project_name")
+    
+    @cached_property
+    def state(self) -> State:
+        return State(self.id)
     
 class User(InfoBaseClass):
     def __init__(self, lims_user_id: str):
