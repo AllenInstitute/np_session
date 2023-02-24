@@ -55,7 +55,7 @@ class State(collections.abc.MutableMapping):
 
     db: ClassVar[redis.Redis]
 
-    def __init__(self, lims_session_id: int) -> None:
+    def __init__(self, lims_session_id: int | str) -> None:
         self.name = str(lims_session_id)
         try:
             _ = self.db
