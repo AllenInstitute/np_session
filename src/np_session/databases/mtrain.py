@@ -13,7 +13,6 @@ class MouseNotInMTrainError(Exception):
 
 
 class MTrain:
-
     server = "http://mtrain:5000"
 
     @classmethod
@@ -26,10 +25,10 @@ class MTrain:
         # but it doesn't necessarily have to be set on init
         if mouse_id:
             self.mouse_id = mouse_id
-    
+
     def __repr__(self):
         return f"{self.__class__.__name__}({self.mouse_id!r})"
-    
+
     def session(self):
         session = requests.session()
         session.post(
@@ -154,7 +153,7 @@ class MTrain:
 
         if matching_sessions:
             return matching_sessions[-1]
-        return None
+        return {}
 
     @regimen.setter
     def regimen(self):
@@ -163,7 +162,9 @@ class MTrain:
         )
 
     def set_regimen_and_stage(
-        self, regimen:  Optional[dict | int | str] = None, stage: Optional[dict | int | str] = None
+        self,
+        regimen: Optional[dict | int | str] = None,
+        stage: Optional[dict | int | str] = None,
     ):
         """Requires a regimen dict, id (str/int) or name (str), plus stage dict, id (str/int) or name (str)"""
 
