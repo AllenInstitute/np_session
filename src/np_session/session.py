@@ -307,8 +307,29 @@ class Session:
     @cached_property
     def state(self) -> State:
         return State(self.id)
-
-
+    
+    def find_platform_json(self) -> pathlib.Path | None:
+        """Find the platform.json file for this session, if it exists."""
+        path = (
+            self.data_dict.get('EcephysPlatformFile') 
+            or next(self.npexp_path.glob('*platformD1*.json'), None)
+            )
+        if path and 'platformD1' in path.name:
+            return np_config.normalize_path(path)
+        
+    def find_settings_xml(self) -> pathlib.Path | None:
+        """Find one of the settings.xml files for this session.
+        
+        Files associated with probes ABC and DEF are identical, so return either.
+        """
+        path = (
+            self.data_dict.get('EcephysProbeRawDataABC_settings') 
+            or self.data_dict.get('EcephysProbeRawDataDEF_settings') 
+            or next(self.npexp_path.glob('*_probe???/settings*.xml'), None)
+            )
+        if path:
+            return np_config.normalize_path(path)
+        
 def generate_session(
     mouse: str | int | Mouse,
     user: str | User,
