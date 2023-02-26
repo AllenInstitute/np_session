@@ -115,10 +115,8 @@ def decode(value: bytes | None) -> AcceptedType:
         return int(decoded_value)
     with contextlib.suppress(ValueError):
         return float(decoded_value)
-    with contextlib.suppress(Exception):
-        _ = eval(decoded_value.capitalize())
-        if _ in (True, False, None):
-            return _
+    if decoded_value.capitalize() in (str(_) for _ in (True, False, None)):
+        return eval(decoded_value.capitalize())
     return decoded_value
 
 if __name__ == "__main__":
