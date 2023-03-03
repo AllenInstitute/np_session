@@ -6,7 +6,7 @@ import doctest
 import functools
 import os
 import pathlib
-from typing import Any, Generator, Union
+from typing import Any, Callable, Generator, Optional, Union
 
 from backports.cached_property import cached_property
 
@@ -324,12 +324,81 @@ class Session:
         """
         path = (
             self.data_dict.get('EcephysProbeRawDataABC_settings') 
-            or self.data_dict.get('EcephysProbeRawDataDEF_settings') 
-            or next(self.npexp_path.glob('*_probe???/settings*.xml'), None)
-            )
-        if path:
-            return np_config.normalize_path(path)
+            or self.data_dict.get('EcephysProbeRawDataDEF_settings')
+        )
+        if (not path or path.suffix != '.xml') and self.npexp_path.exists():
+            path = next(self.npexp_path.glob('*_probe???/settings*.xml'), None)
+        return np_config.normalize_path(path) if path else None
+    
+    def get_files(self, session_type: Literal["D0", "D1", "D2", "habituation"]) -> dict[str, dict[str, str]]:
+        return get_files_manifest(str(self.project), self.folder, session_type)
+    
+    @property
+    def files_D0(self) -> dict[str, dict[str, str]]:
+        """Platform json `files` dict for `_probeABC` and `_probeDEF` folders."""
+        return self.get_files('D0')
+    
+    @property
+    def files_D1(self) -> dict[str, dict[str, str]]:
+        """Platform json `files` dict for all D1 files.
         
+        Includes D0 probe folders: see also `files_D1_minus_D0`.
+        """
+        return self.get_files('D1')
+    
+    @property
+    def files_D1_minus_D0(self) -> dict[str, dict[str, str]]:
+        """Platform json `files` dict for D1 files, minus `_probeABC` and `_probeDEF` folders."""
+        d0 = self.files_D0
+        d1 = self.files_D1
+        return {'files': {k: v for k, v in d1['files'].items() if k not in d0['files']}}
+    
+    @property
+    def files_D2(self) -> dict[str, dict[str, str]]:
+        return self.get_files('D2')
+    
+    @property
+    def files_hab(self) -> dict[str, dict[str, str]]:
+        return self.get_files('habituation')
+    
+    
+    @cached_property
+    def metrics_csv(self) -> tuple[pathlib.Path, ...]:
+        probe_letters = self.data_dict.get('data_probes')
+        probe_paths = [self.data_dict.get(f'probe{letter}') for letter in probe_letters]
+        if any(probe_paths):
+            csv_paths = [_ / 'metrics.csv' for _ in probe_paths if _ and (_/ 'metrics.csv').exists()]
+            if csv_paths:
+                return tuple(csv_paths)
+        if self.npexp_path.exists():
+            return tuple(self.npexp_path.rglob('metrics.csv'))
+    
+    @cached_property
+    def probe_letter_to_metrics_csv_path(self) -> dict[str, pathlib.Path]:
+        csv_paths = self.metrics_csv
+        if not csv_paths:
+            return {}
+        letter = lambda x: re.findall('(?<=_probe)[A-F]', str(x))
+        probe_letters = [_[-1] for _ in map(letter, csv_paths) if _]
+        if probe_letters:
+            return dict(zip(probe_letters, csv_paths))
+        return {}
+    
+    @cached_property
+    def probe_letter_to_serial_number_from_probe_info(self) -> dict[str, int | None]:
+        """Probe letter to serial number, if they can be found from `probe_info.json`.
+        
+        Not a tuple because we might not find a serial number for all probes.
+        """
+        probe_letters: list[str] = self.data_dict.get('data_probes')
+        probe_info = [self.data_dict.get(f'probe{letter}_info') for letter in probe_letters]
+        if not any(probe_info):
+            return {}
+        mapping = dict().fromkeys(probe_letters, None)
+        for letter, info in zip(probe_letters, probe_info):
+            result = json.loads(pathlib.Path(info).read_bytes()).get('probe', {}).get('serial number')
+            mapping[letter] = int(result) if result else None
+            
 def generate_session(
     mouse: str | int | Mouse,
     user: str | User,
@@ -390,5 +459,7 @@ def sessions(
 if __name__ == "__main__":
     if is_connected("lims2"):
         doctest.testmod(verbose=True)
+        # optionflags=(doctest.ELLIPSIS, doctest.NORMALIZE_WHITESPACE,
+        # doctest.IGNORE_EXCEPTION_DETAIL)
     else:
         print("LIMS not connected - skipping doctests")
