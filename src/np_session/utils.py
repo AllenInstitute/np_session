@@ -1,3 +1,8 @@
+"""
+Utility functions that don't depend on the main Session module (so they can be imported there),
+and that could be exported if they're found to be useful elsewhere.
+"""
+
 from __future__ import annotations
 
 import datetime
@@ -197,15 +202,19 @@ def is_new_ephys_folder(path: PathLike) -> bool:
     return bool(list(path.glob("*_probe*/Record Node*")))
 
 
-def files_manifest(
+def get_files_manifest(
     project_name: str,
     session_str: str = "",
-    session_type: Literal["D1", "D2", "habituation"] = "D1",
-) -> dict[str, dict[str, str]]:
-    """Return a list of files that could be entered directly into a platform json `files` key.
+    session_type: Literal["D0", "D1", "D2", "habituation"] = "D1",
+) -> dict[Literal['files'], dict[str, dict[str, str]]]:
+    """Return a dict that could be entered directly into a platform json `files` key.
     - project_name: corresponds to a manifet template
     - session_str: [lims_id]_[mouse_id]_[session_id], will replace a placeholder in a manifest template
     """
+    if session_type is 'D0':
+        return {'files': {f'ephys_raw_data_probe_{letter}': 
+        {'directory_name': f'{session_str}_probe{"ABC" if letter in "ABC" else "DEF"}'} for letter in 'ABCDEF'}}
+        
     if session_type not in ["D1", "habituation", "D2"]:
         raise ValueError(f"{session_type} is not a valid session type")
 
