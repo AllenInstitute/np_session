@@ -11,6 +11,7 @@ import glob
 import json
 import os
 import pathlib
+from typing import ClassVar
 
 import psycopg2
 import psycopg2.extras
@@ -141,7 +142,7 @@ def get_cred_location():
     return cred_json
 
 
-def get_psql_cursor():
+def get_psql_cursor(as_dict=True):
     """Initializes a connection to the postgres database
     Parameters
     ----------
@@ -172,6 +173,8 @@ def get_psql_cursor():
         dbname=dbname, user=user, host=host, password=password, port=port
     )
     con.set_session(readonly=True, autocommit=True)
+    if as_dict:
+        return con.cursor(cursor_factory=psycopg2.extras.RealDictCursor,)
     return con.cursor()
 
 
@@ -182,7 +185,6 @@ class data_getter:
     2) grab experiment data
     3) grab probe data
     """
-
     def __init__(self, exp_id=None, base_dir=None, cortical_sort=False):
         self.data_dict = {}
         self.cortical_sort = cortical_sort
@@ -206,22 +208,27 @@ class data_getter:
 
 
 class lims_data_getter(data_getter):
+    
+    con: ClassVar[psycopg2.connection]
+    cursor: ClassVar[psycopg2.cursor]
     def connect(self, exp_id, base_dir):
         # set up connection to lims
-        self.con = psycopg2.connect(
-            dbname="lims2",
-            user="limsreader",
-            host="limsdb2",
-            password="limsro",
-            port=5432,
-        )
-        self.con.set_session(
-            readonly=True,
-            autocommit=True,
-        )
-        self.cursor = self.con.cursor(
-            cursor_factory=psycopg2.extras.RealDictCursor,
-        )
+        if not hasattr(self.__class__, "con"):
+            self.__class__.con = psycopg2.connect(
+                dbname="lims2",
+                user="limsreader",
+                host="limsdb2",
+                password="limsro",
+                port=5432,
+            )
+            self.con.set_session(
+                readonly=True,
+                autocommit=True,
+            )
+        if not hasattr(self.__class__, "cursor"):
+            self.__class__.cursor = self.con.cursor(
+                cursor_factory=psycopg2.extras.RealDictCursor,
+            )
 
         self.lims_id = exp_id
 
