@@ -389,7 +389,6 @@ def sessions(
 
 if __name__ == "__main__":
     if is_connected("lims2"):
-        doctest.testmod()
-        # optionflags=(doctest.ELLIPSIS, doctest.NORMALIZE_WHITESPACE, doctest.IGNORE_EXCEPTION_DETAIL)
+        doctest.testmod(verbose=True)
     else:
         print("LIMS not connected - skipping doctests")
