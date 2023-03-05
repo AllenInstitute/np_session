@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import contextlib
+import copy
 import datetime
 import doctest
 import functools
 import os
 import pathlib
-from typing import Any, Callable, Generator, Optional, Union
+from typing import Any, Callable, Generator, Iterable, Optional, Union
 
 from backports.cached_property import cached_property
 
@@ -16,6 +17,7 @@ from typing_extensions import Literal
 
 from np_session.components.info import Mouse, Project, Projects, User
 from np_session.components.paths import *
+from np_session.components.platform_json import *
 from np_session.databases import data_getters as dg
 from np_session.databases import lims2 as lims
 from np_session.databases import mtrain
@@ -178,8 +180,9 @@ class Session:
                     self.rig = np_config.Rig()
                     continue
 
-                # TODO try from platform json
-
+                # try from platform json
+                with contextlib.suppress(Exception):
+                    self.rig = np_config.Rig(self.platform_json.rig_id)
                 # try from lims
                 rig_id: str | None = self.data_dict.get("rig")
                 if rig_id:
@@ -301,9 +304,38 @@ class Session:
 
     @property
     def foraging_id(self) -> str | None:
+        "From lims, mtrain, or platform json, in that order."
+        if not hasattr(self, "_foraging_id"):
+            self._foraging_id = self.foraging_id_lims or self.foraging_id_mtrain or self.platform_json.foraging_id
+        return self._foraging_id
+    
+    @foraging_id.setter
+    def foraging_id(self, value: str) -> None:
+        self.platform_json.foraging_id = value # validates uuid
+        self._foraging_id = value
+        
+    @cached_property
+    def foraging_id_mtrain(self) -> str | None:
         """Foraging ID from MTrain (if an MTrain session is found)."""
         return self.mtrain.get("id", None)
-
+    
+    @cached_property
+    def foraging_id_lims(self) -> str | None:
+        """Foraging ID from lims based on start/stop time of experiment and mouse ID
+        (from platform json), obtained from the behavior session that ran at the time. 
+        
+        Not all mice have foraging IDs (e.g. variability project)"""
+        try:
+            from_lims = dg.get_foraging_id_from_behavior_session(
+                self.mouse.id,
+                self.experiment_start,
+                self.experiment_end,
+            )
+        except (dg.MultipleBehaviorSessionsError, dg.NoBehaviorSessionError):
+            return None
+        else:
+            return from_lims
+    
     @cached_property
     def state(self) -> State:
         return State(self.id)
@@ -371,7 +403,7 @@ class Session:
             if csv_paths:
                 return tuple(csv_paths)
         if self.npexp_path.exists():
-            return tuple(self.npexp_path.rglob('metrics.csv'))
+            return tuple(self.npexp_path.glob('*/*/*/metrics.csv'))
     
     @cached_property
     def probe_letter_to_metrics_csv_path(self) -> dict[str, pathlib.Path]:
@@ -384,6 +416,79 @@ class Session:
             return dict(zip(probe_letters, csv_paths))
         return {}
     
+    @cached_property
+    def platform_json(self) -> PlatformJson:
+        """Platform D1 json on npexp."""
+        pj = PlatformJson(self.npexp_path)
+        self.fix_platform_json(pj)
+        return pj
+    
+    def fix_platform_json(self, path_or_obj: Optional[pathlib.Path | PlatformJson] = None):
+        if not path_or_obj:
+            path_or_obj = self.platform_json
+        if isinstance(path_or_obj, pathlib.Path):
+            path_or_obj = PlatformJson(path_or_obj)
+        pj = path_or_obj
+
+        update_platform_json_fields(pj, self)
+
+    
+    @cached_property
+    def experiment_start(self) -> datetime.datetime:
+        """Start time estimated from platform.json, for finding files created during
+        experiment. Not relevant for D2 files.
+        
+        In the event that the platform.json file does not contain a time, we use the start
+        of the day of the session.       
+        """
+        fields_to_try = ('ExperimentStartTime', 'ProbeInsertionStartTime', 'CartridgeLowerTime', 'HeadFrameEntryTime', 'workflow_start_time',)
+        for _ in fields_to_try:
+            time = getattr(self.platform_json, _)
+            if isinstance(time, datetime.datetime):
+                return time
+        logger.warning('Could not find experiment start time in %s: using start of day instead', self.platform_json)
+        return datetime.datetime(*session.date.timetuple()[:5])
+    
+    @cached_property
+    def experiment_end(self) -> datetime.datetime:
+        """End time estimated from platform.json, for finding files created during
+        experiment. Not relevant for D2 files.
+        
+        In the event that the platform.json file does not contain a time, we use the end
+        of the day of the session.       
+        """
+        fields_to_try = ('workflow_complete_time', 'ExperimentCompleteTime', 'HeadFrameExitTime',)
+        for _ in fields_to_try:
+            time = getattr(self.platform_json, _)
+            if isinstance(time, datetime.datetime):
+                return time
+        logger.warning('Could not find experiment end time in %s: using end of day instead', self.platform_json)
+        return datetime.datetime(*session.date.timetuple()[:5]) + datetime.timedelta(days=1) - datetime.timedelta(seconds=1)
+    
+    
+    @property
+    def probes_inserted(self) -> tuple[Literal['A', 'B', 'C', 'D', 'E', 'F'], ...]:
+        probes = 'ABCDEF'
+        notes: dict = self.platform_json.InsertionNotes
+        # assume that no notes means probe was inserted
+        return tuple(_ for _ in probes if (f'Probe{_}' not in notes) or (notes[f'Probe{_}'].get('FailedToInsert') == 0))
+        
+    @probes_inserted.setter
+    def probes_inserted(self, inserted: str | Iterable[Literal['A', 'B', 'C', 'D', 'E', 'F']]):
+        probes = 'ABCDEF'
+        inserted = "".join(_.upper() for _ in inserted)
+        if not all(_ in probes for _ in inserted):
+            raise ValueError(f"Probes must be a sequence of letters A-F, got {inserted}")
+        notes = copy.deepcopy(self.platform_json.InsertionNotes)
+        for _ in probes:
+            probe = f'Probe{_}'
+            if probe in notes and _ in inserted:
+                notes[probe]['FailedToInsert'] = 0
+            if probe not in notes and _ not in inserted:
+                notes[probe] = {'FailedToInsert': 1}
+        self.platform_json.InsertionNotes = notes
+        logger.debug('Updated %s InsertionNotes: %s', self.platform_json, self.platform_json.InsertionNotes)
+        
     @cached_property
     def probe_letter_to_serial_number_from_probe_info(self) -> dict[str, int | None]:
         """Probe letter to serial number, if they can be found from `probe_info.json`.
@@ -457,6 +562,9 @@ def sessions(
 
 
 if __name__ == "__main__":
+    
+    session = Session(r'\\allen\programs\mindscope\workgroups\np-exp\1249523910_366122_20230223')
+    session.platform_json
     if is_connected("lims2"):
         doctest.testmod(verbose=True)
         # optionflags=(doctest.ELLIPSIS, doctest.NORMALIZE_WHITESPACE,
