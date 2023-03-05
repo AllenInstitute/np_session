@@ -36,7 +36,7 @@ def get_foraging_id_from_behavior_session(
             WHERE date_of_acquisition between '{start.strftime(fmt)}' and '{end.strftime(fmt)}'
             and external_specimen_name = '{mouse_id}'
             """
-    cur = get_psql_cursor(get_cred_location())
+    cur = get_psql_cursor()
     cur.execute(query)
     info_list = []
     if cur.rowcount == 0:
