@@ -457,7 +457,7 @@ class Session:
             if isinstance(time, datetime.datetime):
                 return time
         logger.warning('Could not find experiment start time in %s: using start of day instead', self.platform_json)
-        return datetime.datetime(*session.date.timetuple()[:5])
+        return datetime.datetime(*self.date.timetuple()[:5])
     
     @cached_property
     def experiment_end(self) -> datetime.datetime:
@@ -473,8 +473,7 @@ class Session:
             if isinstance(time, datetime.datetime):
                 return time
         logger.warning('Could not find experiment end time in %s: using end of day instead', self.platform_json)
-        return datetime.datetime(*session.date.timetuple()[:5]) + datetime.timedelta(days=1) - datetime.timedelta(seconds=1)
-    
+        return datetime.datetime(*self.date.timetuple()[:5]) + datetime.timedelta(days=1) - datetime.timedelta(seconds=1)
     
     @property
     def probes_inserted(self) -> tuple[Literal['A', 'B', 'C', 'D', 'E', 'F'], ...]:
