@@ -578,8 +578,6 @@ def sessions(
 
 if __name__ == "__main__":
     
-    session = Session(r'\\allen\programs\mindscope\workgroups\np-exp\1249523910_366122_20230223')
-    session.platform_json
     if is_connected("lims2"):
         doctest.testmod(verbose=True)
         # optionflags=(doctest.ELLIPSIS, doctest.NORMALIZE_WHITESPACE,
