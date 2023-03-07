@@ -24,6 +24,7 @@ import json
 import pathlib
 import re
 from typing import Any, Callable, Type
+from typing_extensions import Literal
 
 import np_logging
 import requests
@@ -170,6 +171,15 @@ class LIMS2MouseInfo(LIMS2InfoBaseClass):
                 return exp["id"]
         return None
 
+    @property
+    def isi_targets(self) -> tuple[dict[Literal['x', 'y'], float], ...] | None:
+        "List of targets in image space for the mouse's most recent ISI experiment not marked `failed`."
+        if self.isi_info:
+            for isi_exp in self.isi_info["isi_experiments"]:
+                if isi_exp["id"] == self.isi_id:
+                    return tuple(isi_exp['targets']['insertion_targets']['image_space'])
+        return None
+    
     @property
     def project_id(self) -> int:
         "ID of the the project the mouse belongs to."
