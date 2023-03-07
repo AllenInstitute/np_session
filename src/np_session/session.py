@@ -58,8 +58,8 @@ class Session:
     '1116941914_576323_20210721'
     >>> session.project.lims.id
     714916854
-    >>> session.is_ecephys_session
-    True
+    >>> session.is_hab
+    False
     >>> session.rig.acq # hostnames reflect the computers used during the session, not necessarily the current machines
     'W10DT05515'
 
@@ -211,11 +211,21 @@ class Session:
 
     @property
     def is_ecephys_session(self) -> bool | None:
-        """False if behavior session, None if unsure."""
+        """False if behavior session, None if unsure.
+        
+        Note that habs are classed as ecephys sessions: use `is_hab`.
+        """
         if not self.lims:
             return None
         return "ecephys_session" in self.lims.get("storage_directory", "")
 
+    @property
+    def is_hab(self) -> bool | None:
+        """False if hab session, None if unsure."""
+        if not self.lims:
+            return None
+        return self.lims.get('name', '').startswith('HAB')
+    
     @property
     def npexp_path(self) -> pathlib.Path:
         """np-exp root / folder (may not exist)"""
@@ -525,8 +535,9 @@ def generate_session(
 
 
 def sessions(
-    path=NPEXP_ROOT,
-    project: str | Projects = None,
+    root: str | pathlib.Path = NPEXP_ROOT,
+    project: Optional[str | Projects] = None,
+    habs: bool = False,
     session_type: Literal["ecephys", "behavior"] = "ecephys",
 ) -> Generator[Session, None, None]:
     """Recursively find Session folders in a directory.
@@ -535,10 +546,12 @@ def sessions(
     (use the Project enum if unsure)
     """
 
+    root = pathlib.Path(root)
+    
     if isinstance(project, str):
         project = getattr(Projects, project)
 
-    for path in NPEXP_PATH.iterdir():
+    for path in root.iterdir():
         if not path.is_dir():
             continue
         try:
@@ -546,13 +559,15 @@ def sessions(
         except (SessionError, FilepathIsDirError):
             continue
 
-        if (
-            session_type == "ecephys" and session.is_ecephys_session == False
-        ):  # None = unsure and is included
+        if habs != session.is_hab:
+            # is_hab = None means unsure: session is returned
             continue
+        
+        
         if (
-            session_type == "behavior" and session.is_ecephys_session
-        ):  # None = unsure and is included
+            session.is_ecephys_session and session_type == "behavior"
+            or (session.is_ecephys_session == False) and session_type == "ecephys"
+        ): # is_ecephys_session = None means unsure: session is returned
             continue
 
         if project and session.project not in project.value:
