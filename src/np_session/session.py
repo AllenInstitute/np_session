@@ -426,12 +426,14 @@ class Session:
             return dict(zip(probe_letters, csv_paths))
         return {}
     
-    @cached_property
+    @property
     def platform_json(self) -> PlatformJson:
         """Platform D1 json on npexp."""
-        pj = PlatformJson(self.npexp_path)
-        self.fix_platform_json(pj)
-        return pj
+        with contextlib.suppress(AttributeError):
+            return self._platform_json
+        self._platform_json = PlatformJson(self.npexp_path)
+        update_from_session(self._platform_json, self)
+        return self.platform_json
     
     def fix_platform_json(self, path_or_obj: Optional[pathlib.Path | PlatformJson] = None):
         if not path_or_obj:
