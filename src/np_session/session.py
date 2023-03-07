@@ -9,19 +9,18 @@ import os
 import pathlib
 from typing import Any, Callable, Generator, Iterable, Optional, Union
 
-from backports.cached_property import cached_property
-
 import np_config
 import np_logging
+from backports.cached_property import cached_property
 from typing_extensions import Literal
 
 from np_session.components.info import Mouse, Project, Projects, User
 from np_session.components.paths import *
 from np_session.components.platform_json import *
+from np_session.databases import State
 from np_session.databases import data_getters as dg
 from np_session.databases import lims2 as lims
 from np_session.databases import mtrain
-from np_session.databases import State
 from np_session.utils import *
 
 logger = np_logging.getLogger(__name__)
@@ -49,7 +48,8 @@ class Session:
     """Session information from any string or PathLike containing a lims session ID.
 
     Note: lims/mtrain properties may be empty or None if mouse/session isn't in db.
-
+    Note: `is_ecephys_session` checks ecephys vs behavior. habs are ecephys sessions in lims. 
+    
     Quick access to useful properties:
     >>> session = Session('c:/1116941914_surface-image1-left.png')
     >>> session.lims.id
@@ -211,7 +211,7 @@ class Session:
 
     @property
     def is_ecephys_session(self) -> bool | None:
-        """False if behavior session, None if unsure.
+        """False if behavior session in lims, None if unsure.
         
         Note that habs are classed as ecephys sessions: use `is_hab`.
         """
@@ -229,8 +229,8 @@ class Session:
     @property
     def npexp_path(self) -> pathlib.Path:
         """np-exp root / folder (may not exist)"""
-        return NPEXP_ROOT / self.folder
-
+        return NPEXP_ROOT / 'habituation' / self.folder if self.is_hab else NPEXP_ROOT / self.folder
+    
     @property
     def lims_path(self) -> pathlib.Path | None:
         """Corresponding directory in lims, if one can be found"""
@@ -238,7 +238,7 @@ class Session:
             path: str = self.lims.get("storage_directory", "")
             if not path:
                 logger.debug(
-                    "lims checked successfully, but no folder uploaded for ", self.id
+                    "lims checked successfully, but no folder uploaded for %s", self.id
                 )
                 self._lims_path = None
             else:
@@ -441,9 +441,7 @@ class Session:
         if isinstance(path_or_obj, pathlib.Path):
             path_or_obj = PlatformJson(path_or_obj)
         pj = path_or_obj
-
-        update_platform_json_fields(pj, self)
-
+        # TODO get files dict, fetch files
     
     @cached_property
     def experiment_start(self) -> datetime.datetime:
@@ -518,16 +516,18 @@ class Session:
 def generate_session(
     mouse: str | int | Mouse,
     user: str | User,
-    session_type: Literal["ecephys", "hab"] = "ecephys",
+    session_type: Literal["ephys", "hab", "behavior"] = "ephys",
 ) -> Session:
     if not isinstance(mouse, Mouse):
         mouse = Mouse(mouse)
     if not isinstance(user, User):
         user = User(user)
-    if session_type == "ecephys":
-        lims_session = lims.generate_ecephys_session(mouse=mouse.lims, user=user.lims)
+    if "ephys" in session_type: # maintain backwards compatibility with 'ecephys'
+        lims_session = lims.generate_ephys_session(mouse=mouse.lims, user=user.lims)
     elif session_type == "hab":
         lims_session = lims.generate_hab_session(mouse=mouse.lims, user=user.lims)
+    elif session_type == "behavior":
+        raise ValueError("Generating behavior sessions is not yet supported")
     session = Session(lims_session)
     # assign instances with data already fetched from lims:
     session._mouse = mouse
@@ -538,15 +538,13 @@ def generate_session(
 def sessions(
     root: str | pathlib.Path = NPEXP_ROOT,
     project: Optional[str | Projects] = None,
-    habs: bool = False,
-    session_type: Literal["ecephys", "behavior"] = "ecephys",
+    session_type: Literal["ephys", "hab", "behavior"] = "ephys",
 ) -> Generator[Session, None, None]:
-    """Recursively find Session folders in a directory.
+    """Find Session folders in a directory.
 
     Project is the common-name among the neuropixels team: 'DR', 'GLO', 'VAR', 'ILLUSION'
-    (use the Project enum if unsure)
+    (use the Project enum if unsure).
     """
-
     root = pathlib.Path(root)
     
     if isinstance(project, str):
@@ -559,26 +557,30 @@ def sessions(
             session = Session(path)
         except (SessionError, FilepathIsDirError):
             continue
-
-        if habs != session.is_hab:
-            # is_hab = None means unsure: session is returned
-            continue
-        
         
         if (
-            session.is_ecephys_session and session_type == "behavior"
-            or (session.is_ecephys_session == False) and session_type == "ecephys"
-        ): # is_ecephys_session = None means unsure: session is returned
+            (session_type == "behavior") and (session.is_ecephys_session in (True, None) or session.is_hab)
+        ): # watch out: is_ecephys_session is None if unsure. assumed to be ecephys here
+            continue
+        
+        if (
+            (session_type != "hab") and (session.is_hab)
+        ): # watch out: is_hab is None if unsure
             continue
 
         if project and session.project not in project.value:
             continue
 
+        if session.is_ecephys_session is None:
+            logger.debug("Unsure if %s is an ecephys or behavior session on lims, but it's included in results", session)
+        if session.is_hab is None:
+            logger.debug("Unsure if %s is a hab or ephys session, but it's included in results", session)
+            
         yield session
 
 
 if __name__ == "__main__":
-    
+
     if is_connected("lims2"):
         doctest.testmod(verbose=True)
         # optionflags=(doctest.ELLIPSIS, doctest.NORMALIZE_WHITESPACE,

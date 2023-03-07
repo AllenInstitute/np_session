@@ -24,10 +24,10 @@ import json
 import pathlib
 import re
 from typing import Any, Callable, Type
-from typing_extensions import Literal
 
 import np_logging
 import requests
+from typing_extensions import Literal
 
 logger = np_logging.getLogger(__name__)
 
@@ -288,7 +288,7 @@ class LIMS2BehaviorSessionInfo(LIMS2SessionInfo):
 # end of classes ----------------------------------------------------------------------- #
 
 
-def generate_ecephys_session(
+def generate_ephys_session(
     mouse: str | int | LIMS2MouseInfo,
     user: str | LIMS2UserInfo,
 ) -> LIMS2SessionInfo:
@@ -343,7 +343,6 @@ def generate_hab_session(
         raise ValueError(f"Failed to create session: {decoded_dict}")
     return LIMS2SessionInfo(new_session_id)
 
-
 def find_session_folder_string(path: str | pathlib.Path) -> str | None:
     """Extract [8+digit session ID]_[6-digit mouse ID]_[6-digit date
     str] from a file or folder path"""
@@ -356,7 +355,6 @@ def find_session_folder_string(path: str | pathlib.Path) -> str | None:
             )
         return session_folders[0]
     return None
-
 
 def info_classes_from_session_folder(
     session_folder: str,
