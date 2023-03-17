@@ -5,9 +5,10 @@ import copy
 import datetime
 import doctest
 import functools
+import itertools
 import os
 import pathlib
-from typing import Any, Callable, Generator, Iterable, Optional, Union
+from typing import Any, Callable, Generator, Iterable, MutableMapping, Optional, Union
 
 import np_config
 import np_logging
@@ -595,6 +596,47 @@ def sessions(
             
         yield session
 
+def cleanup_npexp():
+    """Remove empty dirs, 366122 dirs, move habs"""
+    for _ in itertools.chain(NPEXP_ROOT.iterdir(), (NPEXP_ROOT / "habituation").iterdir()):
+        if not _.is_dir():
+            continue
+        if not any(_.iterdir()):
+            _.rmdir()
+            logger.info("Removed empty dir %s", _.name)
+            continue
+        try:
+            session = Session(_)
+        except SessionError:
+            continue
+        if session.is_hab and _.parent == NPEXP_ROOT:
+            try:
+                _.replace(NPEXP_ROOT / "habituation" / "backup" / _.name)
+            except OSError as exc:
+                logger.error("Moving hab failed: %r", exc)
+            else:
+                logger.info("Moved %s to habituation/backup", _.name)
+                
+                
+def latest_session(
+        project: str | Project | Projects,
+        session_type: Literal["ephys", "hab", "behavior"] = "ephys"
+    ) -> Session | None:
+    
+    if isinstance(project, str):
+        if project.upper() in Projects.__members__:
+            project = Projects[project.upper()]
+            
+    session: int | None = None
+    if isinstance(project, Projects):
+        session = project.get_latest_session(session_type)
+    if isinstance(project, Project):
+        session = project.state.get(f'latest_{session_type}')
+    if session is None:
+        logger.info("No latest session found for %s", project)
+        return None
+    
+    return Session(session)
 
 if __name__ == "__main__":
 
