@@ -430,10 +430,11 @@ class Session:
     def platform_json(self) -> PlatformJson:
         """Platform D1 json on npexp."""
         with contextlib.suppress(AttributeError):
+            self._platform_json.load_from_existing()
             return self._platform_json
         self._platform_json = PlatformJson(self.npexp_path)
         update_from_session(self._platform_json, self)
-        return self.platform_json
+        return self._platform_json
     
     def fix_platform_json(self, path_or_obj: Optional[pathlib.Path | PlatformJson] = None):
         if not path_or_obj:

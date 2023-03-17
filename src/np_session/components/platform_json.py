@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 import contextlib
+import copy
 import csv
 import datetime
 import functools
@@ -10,7 +11,9 @@ import pathlib
 import re
 import tempfile
 import time
-from typing import Any, ClassVar, ForwardRef, Generator, Mapping, Optional, Sequence, Union, Dict, List
+from typing import (Any, ClassVar, Dict, ForwardRef, Generator, Iterable, List, Mapping,
+                    Optional, Sequence, Union)
+
 import np_config
 import np_logging
 import pydantic
@@ -55,8 +58,6 @@ class PlatformJsonDateTime(datetime.datetime):
     @staticmethod
     def str2components(v: str) -> tuple[int, int, int, int, int, int, int]:
         return (int(v[:4]), *(int(v[_:_+2]) for _ in range(4, 14, 2)))
-    # def __repr__(self):
-    #     return super().__repr__()})'
     
     def __str__(self):
         return np_config.normalize_time(self)
@@ -68,57 +69,82 @@ class PlatformJson(pydantic.BaseModel):
     """Writes D1 platform json for lims upload. Just requires a path (dir or dir+filename)."""
 
     # ------------------------------------------------------------------------------------- #
-    # required kwargs on init (any property without a default value or leading underscore): 
+    # required kwargs on init (any property without a default value or leading underscore)
     
     path: pathlib.Path
     "Typically the storage directory for the session. Will be modified on assignment."
     
     # ------------------------------------------------------------------------------------- #
     
-    write_on_update: bool = True
+    file_sync: bool = True
     
     @contextlib.contextmanager
-    def write_disabled(self)  -> Generator[None, None, None]:
+    def sync_disabled(self)  -> Generator[None, None, None]:
         "Context manager to temporarily disable writing to file when a property is updated."
-        self.write_on_update = False
+        self.file_sync = False
         yield
-        self.write_on_update = True
+        self.file_sync = True
         
     class Config:
         validate_assignment = True # coerce types on assignment
         extra = 'allow' # 'forbid' = properties must be defined in the model
-        fields = {'path': {'exclude': True}, 'write_on_update': {'exclude': True}}
+        fields = {'path': {'exclude': True}, 'file_sync': {'exclude': True}}
         arbitrary_types_allowed = True
         
     suffix: ClassVar[str] = "_platformD1.json"
         
     def __init__(self, path: Union[str, pathlib.Path]) -> None:
         super().__init__(path=path)
+        if self.path.exists():
+            logger.debug("Loading from existing %s", self.path.name)
+        else:
+            logger.debug("Creating new %s", self.path.name)
+            self.platform_json_creation_time = np_config.normalize_time(time.time())
         self.load_from_existing()
         
     def __str__(self):
         return self.path.as_posix()
     
     def load_from_existing(self) -> None:
-        "Reads existing file and loads all non-empty fields to self."
-        with self.write_disabled():
-            if self.path.exists():
-                contents = json.loads(self.path.read_text() or "{}")
-                for k, v in contents.items():
-                    if v and v != getattr(self, k, None):
-                        setattr(self, k, v)
+        "Update empty fields with non-empty fields from file."
+        with self.sync_disabled():
+            if not self.path.exists():
+                return
+            contents = json.loads(self.path.read_text() or "{}")
+            for k, v in contents.items():
+                if not v:
+                    continue
+                if isinstance(v, (dict, list)) and not all(_ for _ in v):
+                    continue
+                setattr(self, k, v)
     
     def __setattr__(self, name, value):
+        
+        # if field is in non-validated list, just set it 
+        if name in (k for k, v in self.Config.fields.items() if v.get('exclude')):
+            return super().__setattr__(name, value)
+        
+        if self.file_sync:
+            # fetch fields from disk before writing, in case another process updated the
+            # file since we last read it
+            self.load_from_existing()
+        
+        if getattr(self, name, None) == value:
+            return
+        
         _ = super().__setattr__(name, value)
-        is_in_json = name not in (k for k, v in self.Config.fields.items() if v.get('exclude'))
-        if self.write_on_update and is_in_json:
+        
+        logger.debug("Updated %s.%s = %s", self.path.name, name, value)
+            
+        if self.file_sync:
             self.write()
+            
         return _
     
     def write(self): 
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.path.touch()
-        with self.write_disabled():
+        with self.sync_disabled():
             self.platform_json_save_time = np_config.normalize_time(time.time())
         self.path.write_text(self.json(indent=4))
         logger.debug("%s wrote to %s", self.__class__.__name__, self.path.as_posix())
@@ -139,7 +165,8 @@ class PlatformJson(pydantic.BaseModel):
         return v
 
     _foraging_id_re: ClassVar[str] = (
-        r"([0-9,a-f]{8}-[0-9,a-f]{4}-[0-9,a-f]{4}-[0-9,a-f]{4}-[0-9,a-f]{12})"
+        r"([0-9,a-f]{8}-[0-9,a-f]{4}-[0-9,a-f]{4}-[0-9,a-f]{4}-[0-9,a-f]{12})" \
+        r"|([0-9,a-f]{8})"
     )
     
     # auto-generated / ignored ------------------------------------------------------------- #
@@ -147,10 +174,11 @@ class PlatformJson(pydantic.BaseModel):
     "Updated on write."
     rig_id: Optional[str] = np_config.Rig().id if np_config.RIG_IDX else None
     wfl_version: float = 0
-    platform_json_creation_time: PlatformJsonDateTime = pydantic.Field(
-        default_factory=lambda: np_config.normalize_time(time.time()),
-        validate=PlatformJsonDateTime.validate,
-    )
+    platform_json_creation_time: Union[PlatformJsonDateTime, str] = ""
+    # = pydantic.Field(
+    #     default_factory=lambda: np_config.normalize_time(time.time()),
+    #     validate=PlatformJsonDateTime.validate,
+    # )
     
     # pre-experiment
     # ---------------------------------------------------------------------- #
@@ -158,10 +186,13 @@ class PlatformJson(pydantic.BaseModel):
     operatorID: Optional[str] = ""
     sessionID: Optional[Union[str, int]] = ""
     mouseID: Optional[Union[str, int]] = ""
+    project: Optional[str] = ""
+    hab: Optional[bool] = None
+    
     DiINotes: Dict[str, Union[str, int]] = dict(
         EndTime="", StartTime="", dii_description="", times_dipped="", previous_uses="",
     )
-    HardwareConfiguration: Optional[dict] = {}
+    HardwareConfiguration: Optional[Dict] = {}
     probe_A_DiI_depth: str = ""
     probe_B_DiI_depth: str = ""
     probe_C_DiI_depth: str = ""
@@ -178,11 +209,13 @@ class PlatformJson(pydantic.BaseModel):
     CartridgeLowerTime: Union[PlatformJsonDateTime, str] = ''
     ProbeInsertionStartTime: Union[PlatformJsonDateTime, str] = ''
     ProbeInsertionCompleteTime: Union[PlatformJsonDateTime, str] = ''
-    InsertionNotes: dict[str, dict] = pydantic.Field(default_factory=dict)
+    InsertionNotes: Dict[str, Dict] = pydantic.Field(default_factory=dict)
     ExperimentStartTime: Union[PlatformJsonDateTime, str] = ''
     stimulus_name: str = ""
+    "MTrain stage (?)."
     script_name: Union[pathlib.Path, str] = ""
-
+    "Path to stimulus script."
+    
     # post-experiment ---------------------------------------------------------------------- #
     ExperimentCompleteTime: Union[PlatformJsonDateTime, str] = ''
     ExperimentNotes: Dict[str, Dict[str, Any]] = dict(
@@ -198,36 +231,46 @@ class PlatformJson(pydantic.BaseModel):
     manifest_creation_time: Union[PlatformJsonDateTime, str] = ''
     workflow_complete_time: Union[PlatformJsonDateTime, str] = ''
     
+    manipulator_coordinates: Dict[str, Dict[Any, Any]] = pydantic.Field(default_factory=dict)
 
     files: Dict[str, Dict[str, str]] = pydantic.Field(default_factory=dict)
 
-    @property
-    def session(self) -> str:
-        return str(self.sessionID)
-
-    
-def update_platform_json_fields(pj: PlatformJson, session) -> None:
-    "Updates fields in a platform json file."
-    def _update(field, new):
-        existing = getattr(pj, field)
-        if not new or existing == new:
-            return
-        logger.info('Updating %s %s: %s -> %s', pj.path.name, field, existing, new)
-        setattr(pj, field, new)
+    def update(self, field, new) -> None:
         
-    with pj.write_disabled():
-        _update('operatorID', session.user.id)
-        _update('sessionID', session.id)
-        _update('mouseID', session.mouse.id)
-        _update('stimulus_name', session.lims['stimulus_name'])
+        self.load_from_existing()
+        
+        existing = getattr(self, field)
+        
+        if (not new and new is not False) or existing == new:
+            return
+        
+        # now merge the new value with the existing value in the file if it's a dict
+        with contextlib.suppress(TypeError, AttributeError):
+            new = np_config.merge(copy.deepcopy(getattr(self, field)), new)
+            
+        logger.debug('Updating %s %s: %s -> %s', self.path.name, field, existing, new)
+        with self.sync_disabled():
+            setattr(self, field, new)
+        self.write()
+   
+def update_from_session(pj: PlatformJson, session) -> None:
+    "Updates fields in a platform json file."
+    #! careful not to execute Session methods that call this platform json instance in a loop
+    
+    with pj.sync_disabled():
+        logger.debug("Updating %s with session %s fields, with write disabled", pj.path.name, session.id)
+        pj.update('operatorID', str(session.user)) # don't need to convert here, `update` will compare values with existing
+        pj.update('sessionID', str(session.id))
+        pj.update('mouseID', str(session.mouse.id))
+        pj.update('stimulus_name', session.lims['stimulus_name'])
         if pj.script_name:
             with contextlib.suppress(Exception):
-                _update('script_name', np_config.local_to_unc(session.rig.stim, pj.script_name))
-        _update('foraging_id', session.foraging_id)
+                if session.rig.stim not in pj.script_name.as_posix():
+                    pj.update('script_name', np_config.local_to_unc(session.rig.stim, pj.script_name).as_posix())
+        pj.update('foraging_id', session.foraging_id)
+        pj.update('project', session.project.id)
+        pj.update('hab', session.is_hab)
         
     pj.write()
 
-if __name__ == "__main__":
-    p=PlatformJson(pathlib.Path('.').resolve() / '1170788301_607186_20220413_platformD1.json')
-    p.workflow_complete_time = '20220414174434'
-    print(p.json(indent=4))
+
