@@ -56,6 +56,9 @@ def get_foraging_id_from_behavior_session(
         elif len(info_list) == 1 and isinstance(info_list[0], tuple):
             foraging_id = info_list[0][0]
             return foraging_id
+        elif len(info_list) == 1 and isinstance(info_list[0], dict):
+            foraging_id = info_list[0]['foraging_id']
+            return foraging_id
         else:
             raise Exception(
                 f"Unexpected behavior session info for MID {mouse_id} between {start} and {end}: {info_list}"
