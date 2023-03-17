@@ -1,51 +1,59 @@
-from collections.abc import MutableMapping
-from typing import ClassVar, Iterator
-import firebase_admin
-from firebase_admin import credentials
-from firebase_admin import firestore
-import np_logging
-import pathlib
-import json
-import doctest
+from __future__ import annotations
 
-AcceptedType = bool
+import doctest
+import pathlib
+from collections.abc import MutableMapping
+from typing import ClassVar, Iterator, Union
+
+import firebase_admin
+import firebase_admin.firestore as firestore
+import np_logging
+
+AcceptedType = Union[str, int, float, bool, list, None]
+
 class State(MutableMapping):
     """Get and set session state in Firebase via a dict interface.
+    
     - dict interface provides `keys`, `get`, `setdefault`, `pop`, etc.
     - accepted value types are str, int, float, bool, None
 
-    >>> test_lims_id = 123456
-    >>> state = State(test_lims_id)
-    >>> state.data[state.id]['alignment']
-    False
-    >>> another_id = 1234567
-    >>> value: dict = {'aligment': True, 'annotated': True, 'qc_state': True}
-    >>> state = State(another_id)
-    >>> state.insertDocument(value)
-    >>> state.data[state.id]['qc_state']
+    >>> test_id = 123456
+    >>> state = State(test_id)
+    >>> state['new'] = 1.0
+    >>> state['new']
+    1.0
+    >>> state['new'] = 'new'
+    >>> state['new']
+    'new'
+    >>> all('new' in _ for _ in (state, state.keys(), state.values()))
     True
-    >>> state.updateState('qc_state', False)
-    >>> state.data[state.id]['qc_state']
-    False
-    >>> state.deleteState('qc_state')
-    >>> len(list(state.data[state.id].keys()))
-    2
+    >>> state.setdefault('new', True)
+    'new'
+    >>> state.pop('new')
+    'new'
+    >>> del state['new']
+    >>> state.get('new') is None
+    True
     """
+    
     db: ClassVar
-    def __init__(self, lims_session_id: int) -> None:
-        self.id = str(lims_session_id)
-
+    
+    def __init__(self, id: int | str) -> None:
+        self.id = str(id)
         try:
             _ = self.db
         except AttributeError:
             self.__class__.connect()
 
+    def __repr__(self) -> str:
+        return repr(self.session_doc.get().to_dict())
+    
     @classmethod
     def connect(cls) -> None:
         key_path = pathlib.Path('//allen/scratch/aibstemp/arjun.sridhar/db_key.json')
-        cred = credentials.Certificate(key_path)
+        cred = firebase_admin.credentials.Certificate(key_path)
         cls.app = firebase_admin.initialize_app(cred)
-        cls.db = firestore.client()
+        cls.db = firestore.client().collection(u'session_state')
         #cls.ref = cls.db.reference('/session_state') # root user, can create users and add them also if needed
 
     @property
@@ -53,15 +61,13 @@ class State(MutableMapping):
         """
         returns document snapshot
         """
+        doc = self.db.document(str(self.id))
+        if doc.get().to_dict() is None:
+            doc.set({})
+        return doc
 
-        return self.db.collection(u'session_state').document(str(self.id))
-
-    @property
-    def data(self) -> dict[str, AcceptedType]:
-        return {self.session_doc.id: self.session_doc.get().to_dict()}
-
-    def __getitem__(self, key: str) -> dict:
-        return self.data[key]
+    def __getitem__(self, key: str) -> AcceptedType:
+        return self.session_doc.get().to_dict()[key]
 
     def __delitem__(self, key: str) -> None:
         """
@@ -70,48 +76,17 @@ class State(MutableMapping):
         self.session_doc.update({key: firestore.DELETE_FIELD})
 
     def __len__(self) -> int:
-        return len(self.data)
+        return len(self.session_doc.get().to_dict())
 
     def __setitem__(self, key: str, value: AcceptedType) -> None:
         """
         updates the database with the key value item
         """
-        self.session_doc.update({key: value})
+        return self.session_doc.update({key: value})
 
     def __iter__(self) -> Iterator[str]:
-        return iter(self.data)
+        return iter(self.session_doc.get().to_dict())
     
-    def setState(self, key: str, value: AcceptedType) -> None: 
-        """
-        sets the state of the key for the session
-        """
-        self.__setitem__(key, value)
-
-    def insertDocument(self, value: dict) -> None:
-        """
-        inserts a document into database for the session
-        """
-        self.session_doc.set(value)
-
-    def getState(self, key: str) -> AcceptedType:
-        """
-        wrapper that retrieves the state of the key for the session
-        """
-
-        return self.__getitem__(key)
-
-    def updateState(self, key: str, state: AcceptedType) -> None:
-        """
-        wrapper that updates the state of the key for the session
-        """
-        self.__setitem__(key, state)
-
-    def deleteState(self, key: str) -> None:
-        """
-        wrapper that removes the state field for the session
-        """
-        self.__delitem__(key)
-
 if __name__ == '__main__':
-    doctest.testmod()
+    doctest.testmod(verbose=True)
 

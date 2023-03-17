@@ -33,9 +33,8 @@ class State(collections.abc.MutableMapping):
     - dict interface provides `keys`, `get`, `setdefault`, `pop`, etc.
     - accepted value types are str, int, float, bool, None
     
-    >>> test_lims_id = 0
-    >>> state = State(test_lims_id)
-    State('0')
+    >>> test_id = 0
+    >>> state = State(test_id)
     >>> state['test'] = 1.0
     >>> state['test']
     1.0
@@ -45,9 +44,9 @@ class State(collections.abc.MutableMapping):
     >>> all('test' in _ for _ in (state, state.keys(), state.values()))
     True
     >>> state.setdefault('test', True)
-    True
+    'test'
     >>> state.pop('test')
-    True
+    'test'
     >>> del state['test']
     >>> state.get('test') is None
     True
@@ -55,8 +54,8 @@ class State(collections.abc.MutableMapping):
 
     db: ClassVar[redis.Redis]
 
-    def __init__(self, lims_session_id: int | str) -> None:
-        self.name = str(lims_session_id)
+    def __init__(self, id: int | str) -> None:
+        self.name = str(id)
         try:
             _ = self.db
         except AttributeError:
