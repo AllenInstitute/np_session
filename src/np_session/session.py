@@ -356,9 +356,13 @@ class Session:
         else:
             return from_lims
     
-    @cached_property
-    def state(self) -> State:
-        return State(self.id)
+    @property
+    def state(self) -> MutableMapping[str, Any]:
+        try:
+            return State(self.id)
+        except Exception as exc:
+            logger.error("Failed to load `%r.state`: %r", self, exc)
+        return {}
     
     def find_platform_json(self) -> pathlib.Path | None:
         """Find the platform.json file for this session, if it exists."""
