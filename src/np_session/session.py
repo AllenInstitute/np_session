@@ -226,9 +226,9 @@ class Session:
         
         Note that habs are classed as ecephys sessions: use `is_hab`.
         """
-        if not self.lims:
+        if not self.lims or not self.lims.get("ecephys_session"):
             return None
-        return "ecephys_session" in self.lims.get("storage_directory", "")
+        return "ecephys_session" in self.lims['ecephys_session']
 
     @property
     def is_hab(self) -> bool | None:
