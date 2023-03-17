@@ -55,7 +55,7 @@ class State(collections.abc.MutableMapping):
 
     db: ClassVar[redis.Redis]
 
-    def __init__(self, lims_session_id: int) -> None:
+    def __init__(self, lims_session_id: int | str) -> None:
         self.name = str(lims_session_id)
         try:
             _ = self.db
@@ -63,7 +63,7 @@ class State(collections.abc.MutableMapping):
             self.__class__.connect()
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({self.name!r})"
+        return self.data.__repr__()
     
     @classmethod
     def connect(cls) -> None:
@@ -115,10 +115,8 @@ def decode(value: bytes | None) -> AcceptedType:
         return int(decoded_value)
     with contextlib.suppress(ValueError):
         return float(decoded_value)
-    with contextlib.suppress(NameError):
-        _ = eval(decoded_value.capitalize())
-        if _ in (True, False, None):
-            return _
+    if decoded_value.capitalize() in (str(_) for _ in (True, False, None)):
+        return eval(decoded_value.capitalize())
     return decoded_value
 
 if __name__ == "__main__":

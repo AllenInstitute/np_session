@@ -11,9 +11,11 @@ import glob
 import json
 import os
 import pathlib
+from typing import ClassVar
 
 import psycopg2
 import psycopg2.extras
+
 
 class NoBehaviorSessionError(Exception):
     pass
@@ -34,7 +36,7 @@ def get_foraging_id_from_behavior_session(
             WHERE date_of_acquisition between '{start.strftime(fmt)}' and '{end.strftime(fmt)}'
             and external_specimen_name = '{mouse_id}'
             """
-    cur = get_psql_cursor(get_cred_location())
+    cur = get_psql_cursor()
     cur.execute(query)
     info_list = []
     if cur.rowcount == 0:
@@ -53,6 +55,9 @@ def get_foraging_id_from_behavior_session(
             )
         elif len(info_list) == 1 and isinstance(info_list[0], tuple):
             foraging_id = info_list[0][0]
+            return foraging_id
+        elif len(info_list) == 1 and isinstance(info_list[0], dict):
+            foraging_id = info_list[0]['foraging_id']
             return foraging_id
         else:
             raise Exception(
@@ -140,7 +145,7 @@ def get_cred_location():
     return cred_json
 
 
-def get_psql_cursor():
+def get_psql_cursor(as_dict=True):
     """Initializes a connection to the postgres database
     Parameters
     ----------
@@ -171,6 +176,8 @@ def get_psql_cursor():
         dbname=dbname, user=user, host=host, password=password, port=port
     )
     con.set_session(readonly=True, autocommit=True)
+    if as_dict:
+        return con.cursor(cursor_factory=psycopg2.extras.RealDictCursor,)
     return con.cursor()
 
 
@@ -181,9 +188,7 @@ class data_getter:
     2) grab experiment data
     3) grab probe data
     """
-
     def __init__(self, exp_id=None, base_dir=None, cortical_sort=False):
-
         self.data_dict = {}
         self.cortical_sort = cortical_sort
         self.connect(exp_id, base_dir)
@@ -206,23 +211,27 @@ class data_getter:
 
 
 class lims_data_getter(data_getter):
+    
+    con: ClassVar[psycopg2.connection]
+    cursor: ClassVar[psycopg2.cursor]
     def connect(self, exp_id, base_dir):
-
         # set up connection to lims
-        self.con = psycopg2.connect(
-            dbname="lims2",
-            user="limsreader",
-            host="limsdb2",
-            password="limsro",
-            port=5432,
-        )
-        self.con.set_session(
-            readonly=True,
-            autocommit=True,
-        )
-        self.cursor = self.con.cursor(
-            cursor_factory=psycopg2.extras.RealDictCursor,
-        )
+        if not hasattr(self.__class__, "con"):
+            self.__class__.con = psycopg2.connect(
+                dbname="lims2",
+                user="limsreader",
+                host="limsdb2",
+                password="limsro",
+                port=5432,
+            )
+            self.con.set_session(
+                readonly=True,
+                autocommit=True,
+            )
+        if not hasattr(self.__class__, "cursor"):
+            self.__class__.cursor = self.con.cursor(
+                cursor_factory=psycopg2.extras.RealDictCursor,
+            )
 
         self.lims_id = exp_id
 
@@ -409,7 +418,6 @@ class lims_data_getter(data_getter):
 
 class local_data_getter(data_getter):
     def connect(self, exp_id, base_dir):
-
         if os.path.exists(base_dir):
             self.base_dir = base_dir
         else:
@@ -453,13 +461,11 @@ class local_data_getter(data_getter):
         self.data_dict["rig"] = self.get_rig_from_platform()
 
     def get_platform_info(self):
-
         platform_file = self.data_dict["EcephysPlatformFile"]
         with open(platform_file, "r") as file:
             self.platform_info = json.load(file)
 
     def get_rig_from_platform(self):
-
         if not hasattr(self, "platform_info"):
             self.get_platform_info()
 
@@ -508,10 +514,8 @@ class local_data_getter(data_getter):
                 self.data_dict["lfp" + probeID] = lfp_base
 
     def get_image_data(self):
-
         # GET PROBE DEPTH IMAGES
         for probeID in self.data_dict["data_probes"]:
-
             probe_base = self.data_dict["probe" + probeID]
             probe_depth_image = glob_file(os.path.join(probe_base, "probe_depth*.png"))
             if probe_depth_image is not None:
@@ -566,10 +570,10 @@ def convert_path_str_to_pathlib(data_dict_orig) -> dict:
     >>> test = convert_path_str_to_pathlib(orig)
     >>> test[0].as_posix()
     '//allen/programs/mindscope'
-    
+
     >>> test[0] != orig[0]
     True
-    
+
     >>> test = convert_path_str_to_pathlib({1: '/allen/programs/mindscope'})
     >>> test[1].as_posix()
     '//allen/programs/mindscope'
@@ -583,6 +587,8 @@ def convert_path_str_to_pathlib(data_dict_orig) -> dict:
             data_dict[k] = pathlib.Path(v)
     return data_dict
 
+
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

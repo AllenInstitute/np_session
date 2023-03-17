@@ -1,5 +1,8 @@
 import pathlib
 
+# if any of these are changing regularly we could get them from zk, e.g.:
+# np_config.from_zk('/np_defaults/configuration').get('lims_incoming_root')
+
 NPEXP_ROOT = pathlib.Path("//allen/programs/mindscope/workgroups/np-exp")
 INCOMING_ROOT = pathlib.Path(
     "//allen/programs/braintv/production/incoming/neuralcoding"
