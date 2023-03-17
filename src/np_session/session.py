@@ -327,7 +327,9 @@ class Session:
     def foraging_id(self) -> str | None:
         "From lims, mtrain, or platform json, in that order."
         if not hasattr(self, "_foraging_id"):
-            self._foraging_id = self.foraging_id_lims or self.foraging_id_mtrain or self.platform_json.foraging_id
+            self._foraging_id = self.foraging_id_lims or self.foraging_id_mtrain or (
+                self.platform_json.foraging_id if self.platform_json.file_sync else None
+                )
         return self._foraging_id
     
     @foraging_id.setter
