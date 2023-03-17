@@ -74,7 +74,7 @@ class Host(enum.Enum):
 
 def is_connected(host: str | Host) -> bool:
     "Use OS's `ping` cmd to check if `host` is connected."
-    command = ["ping", "-n" if "win" in sys.platform else "-c", "1", host]
+    command = ["ping", "-n" if "win" in sys.platform else "-c", "1", str(host)]
     try:
         return subprocess.call(command, stdout=subprocess.PIPE, timeout=0.1) == 0
     except subprocess.TimeoutExpired:
@@ -102,7 +102,6 @@ def is_valid_session_id(session_id: int | str) -> bool:
     except ValueError:
         return False
     return bool(LIMS2SessionInfo(session_id))
-
 
 def lims_session_id(path: PathLike) -> str | None:
     """
@@ -211,7 +210,7 @@ def get_files_manifest(
     - project_name: corresponds to a manifet template
     - session_str: [lims_id]_[mouse_id]_[session_id], will replace a placeholder in a manifest template
     """
-    if session_type is 'D0':
+    if session_type == 'D0':
         return {'files': {f'ephys_raw_data_probe_{letter}': 
         {'directory_name': f'{session_str}_probe{"ABC" if letter in "ABC" else "DEF"}'} for letter in 'ABCDEF'}}
         
