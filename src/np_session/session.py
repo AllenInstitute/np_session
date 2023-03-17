@@ -18,6 +18,7 @@ from typing_extensions import Literal
 from np_session.components.info import Mouse, Project, Projects, User
 from np_session.components.paths import *
 from np_session.components.platform_json import *
+from np_session.components.lims_manifests import Manifest
 from np_session.databases import State
 from np_session.databases import data_getters as dg
 from np_session.databases import lims2 as lims
@@ -389,37 +390,15 @@ class Session:
             path = next(self.npexp_path.glob('*_probe???/settings*.xml'), None)
         return np_config.normalize_path(path) if path else None
     
-    def get_files(self, session_type: Literal["D0", "D1", "D2", "habituation"]) -> dict[str, dict[str, str]]:
-        return get_files_manifest(str(self.project), self.folder, session_type)
+    @property
+    def D1(self) -> Manifest:
+        """D1 upload manifest for platform json, plus extra methods for finding missing files."""
+        return Manifest(self, 'D1')
     
     @property
-    def files_D0(self) -> dict[str, dict[str, str]]:
-        """Platform json `files` dict for `_probeABC` and `_probeDEF` folders."""
-        return self.get_files('D0')
-    
-    @property
-    def files_D1(self) -> dict[str, dict[str, str]]:
-        """Platform json `files` dict for all D1 files.
-        
-        Includes D0 probe folders: see also `files_D1_minus_D0`.
-        """
-        return self.get_files('D1')
-    
-    @property
-    def files_D1_minus_D0(self) -> dict[str, dict[str, str]]:
-        """Platform json `files` dict for D1 files, minus `_probeABC` and `_probeDEF` folders."""
-        d0 = self.files_D0
-        d1 = self.files_D1
-        return {'files': {k: v for k, v in d1['files'].items() if k not in d0['files']}}
-    
-    @property
-    def files_D2(self) -> dict[str, dict[str, str]]:
-        return self.get_files('D2')
-    
-    @property
-    def files_hab(self) -> dict[str, dict[str, str]]:
-        return self.get_files('habituation')
-    
+    def D2(self) -> Manifest:
+        """D2 upload manifest for platform json, plus extra methods for finding missing files."""
+        return Manifest(self, 'D2')
     
     @cached_property
     def metrics_csv(self) -> tuple[pathlib.Path, ...]:
