@@ -466,12 +466,13 @@ class Session:
         In the event that the platform.json file does not contain a time, we use the start
         of the day of the session.       
         """
-        fields_to_try = ('ExperimentStartTime', 'ProbeInsertionStartTime', 'CartridgeLowerTime', 'HeadFrameEntryTime', 'workflow_start_time',)
-        for _ in fields_to_try:
-            time = getattr(self.platform_json, _)
-            if isinstance(time, datetime.datetime):
-                return time
-        logger.warning('Could not find experiment start time in %s: using start of day instead', self.platform_json)
+        if self.platform_json.file_sync:
+            fields_to_try = ('ExperimentStartTime', 'ProbeInsertionStartTime', 'CartridgeLowerTime', 'HeadFrameEntryTime', 'workflow_start_time',)
+            for _ in fields_to_try:
+                time = getattr(self.platform_json, _)
+                if isinstance(time, datetime.datetime):
+                    return time
+            logger.debug('Could not find experiment start time in %s: using start of day instead', self.platform_json)
         return datetime.datetime(*self.date.timetuple()[:5])
     
     @cached_property
@@ -482,12 +483,13 @@ class Session:
         In the event that the platform.json file does not contain a time, we use the end
         of the day of the session.       
         """
-        fields_to_try = ('workflow_complete_time', 'ExperimentCompleteTime', 'HeadFrameExitTime',)
-        for _ in fields_to_try:
-            time = getattr(self.platform_json, _)
-            if isinstance(time, datetime.datetime):
-                return time
-        logger.warning('Could not find experiment end time in %s: using end of day instead', self.platform_json)
+        if self.platform_json.file_sync:
+            fields_to_try = ('workflow_complete_time', 'ExperimentCompleteTime', 'HeadFrameExitTime',)
+            for _ in fields_to_try:
+                time = getattr(self.platform_json, _)
+                if isinstance(time, datetime.datetime):
+                    return time
+            logger.debug('Could not find experiment end time in %s: using end of day instead', self.platform_json)
         return datetime.datetime(*self.date.timetuple()[:5]) + datetime.timedelta(days=1) - datetime.timedelta(seconds=1)
     
     @property
