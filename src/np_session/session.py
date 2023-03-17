@@ -98,7 +98,17 @@ class Session:
         if not hasattr(other, "date"):
             return NotImplemented
         return self.date < other.date
-
+    
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, (int, str, Session)):
+            return NotImplemented
+        if isinstance(other, Session):
+            return self.id == other.id
+        return str(self) == str(other) or str(self.id) == str(other) or self.folder == other
+    
+    def __hash__(self) -> int:
+        return hash(self.id) ^ hash(self.__class__.__name__)
+    
     def __str__(self) -> str:
         return self.folder
 
