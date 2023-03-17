@@ -23,6 +23,7 @@ requests = "^2"
 np_logging = ">=0.3.8"
 np_config = '>=0.4.17'
 "backports.cached-property" = "*"
+firebase-admin = "^6.1.0"
 redis = "^4.5.1"
 pydantic = "^1.10.5"
 
