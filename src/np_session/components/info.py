@@ -2,13 +2,20 @@ from __future__ import annotations
 
 import abc
 import enum
-from typing import Any
+import functools
+from typing import Any, MutableMapping
 
+
+import np_logging
 from backports.cached_property import cached_property
+from typing_extensions import Literal
 
-from np_session.databases.lims2 import LIMS2MouseInfo, LIMS2ProjectInfo, LIMS2UserInfo
-from np_session.databases.mtrain import MTrain
 from np_session.databases import State
+from np_session.databases.lims2 import (LIMS2MouseInfo, LIMS2ProjectInfo,
+                                        LIMS2UserInfo)
+from np_session.databases.mtrain import MTrain
+
+logger = np_logging.getLogger(__name__)
 
 class InfoBaseClass(abc.ABC):
     "Store details for an object from various databases. The commonly-used format of its name, e.g. '366122' for a mouse ID, can be obtained by converting to str()."
@@ -23,12 +30,15 @@ class InfoBaseClass(abc.ABC):
         return f"{self.__class__.__name__}({self.id!r})"
 
     def __eq__(self, other: Any) -> bool:
-        if isinstance(other, str):
-            return self.id == str(other)
-        if isinstance(other, int):
-            return self.id == int(str(other))
-        return False
-
+        if not isinstance(other, (int, str, InfoBaseClass)):
+            return NotImplemented
+        if isinstance(other, Mouse):
+            return self.id == other.id
+        return str(self) == str(other) or str(self.id) == str(other)
+    
+    def __hash__(self) -> int:
+        return hash(self.id) ^ hash(self.__class__.__name__)
+    
 
 class Mouse(InfoBaseClass):
     def __init__(self, labtracks_mouse_id: str | int):
@@ -52,11 +62,15 @@ class Mouse(InfoBaseClass):
     @property
     def project(self) -> str | None:
         "Project associated with the mouse."
-        return self.lims.get("project_name")
+        return self.lims.project_name if self.lims else None
     
-    @cached_property
-    def state(self) -> State:
-        return State(self.id)
+    @property
+    def state(self) -> MutableMapping[str, Any]:
+        try:
+            return State(self.id)
+        except Exception as exc:
+            logger.error("Failed to load `%r.state`: %r", self, exc)
+        return {}
     
 class User(InfoBaseClass):
     def __init__(self, lims_user_id: str):
@@ -71,6 +85,14 @@ class User(InfoBaseClass):
             except ValueError:
                 self._lims = {}
         return self._lims
+    
+    @property
+    def state(self) -> MutableMapping[str, Any]:
+        try:
+            return State(self.id)
+        except Exception as exc:
+            logger.error("Failed to load `%r.state`: %r", self, exc)
+        return {}
 
 
 class Projects(enum.Enum):
@@ -88,9 +110,32 @@ class Projects(enum.Enum):
         "DynamicRoutingTask1Production",
     )
     VB = ("NeuropixelVisualBehavior",)
-
-
+    TTN = ('TaskTrainedNetworksNeuropixel',)
+    NP = ('NeuropixelPlatformDevelopment',)
+    
+    def get_latest_session(self, session_type: Literal['ephys', 'hab', 'behavior'] = 'ephys') -> int | None:
+        "Lims session id for latest session for all child projects."
+        for _ in self.value:
+            session_id = Project(_).state.get(f'latest_{session_type}')
+            if session_id:
+                return session_id
+        return None
+    
+    get_latest_ephys = functools.partialmethod(get_latest_session, 'ephys')
+    get_latest_hab = functools.partialmethod(get_latest_session, 'hab')
+    get_latest_behavior = functools.partialmethod(get_latest_session, 'behavior')
+    
+    @property
+    def state(self) -> MutableMapping[str, Any]:
+        try:
+            return State(str(self.name))
+        except Exception as exc:
+            logger.error("Failed to load `%r.state`: %r", self, exc)
+        return {}
+    
+    
 class Project(InfoBaseClass):
+    
     def __init__(self, lims_project_name: str):
         self.id = str(lims_project_name)
 
@@ -103,3 +148,19 @@ class Project(InfoBaseClass):
         if isinstance(other, Projects):
             return self.id in other.value
         return super().__eq__(other)
+    
+    @property
+    def state(self) -> MutableMapping[str, Any]:
+        try:
+            return State(self.id)
+        except Exception as exc:
+            logger.error("Failed to load `%r.state`: %r", self, exc)
+        return {}
+    
+    @property
+    def parent(self) -> Projects | None:
+        "Parent project if it exists."
+        for _ in Projects:
+            if self.id in _.value:
+                return _
+        return None
