@@ -60,7 +60,9 @@ class Manifest:
     @property
     def files(self) -> dict[str, dict[str, str]]:
         """Upload manifest for platform json: `{name: {type: session + glob}}, ...}`"""
-        return {k: {v: f'{self.session.folder if self.session else ""}{g.strip("*")}'} for k, v, g in zip(self.names, self.types, self.globs)}
+        if not self.session:
+            return {k: {v: g} for k, v, g in zip(self.names, self.types, self.globs)}
+        return {k: {v: (p.name if p else None)} for k, v, p in zip(self.names, self.types, self.paths)}
     
     @cached_property
     def paths(self) -> tuple[pathlib.Path | None, ...]:
@@ -179,8 +181,3 @@ class Manifest:
     def __repr__(self) -> str:
         return repr(self.files)
     
-if __name__ == "__main__":
-    Manifest('TTN').files
-    Manifest('TTN', 'D2').files
-    Manifest(1254184444, 'D2').paths
-    Manifest(1208053773, 'D1').missing_sorted_data
