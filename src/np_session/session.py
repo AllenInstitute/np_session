@@ -393,12 +393,26 @@ class Session:
     @property
     def D1(self) -> Manifest:
         """D1 upload manifest for platform json, plus extra methods for finding missing files."""
-        return Manifest(self, 'D1')
+        with contextlib.suppress(AttributeError):
+            return self._D1
+        self._D1 = Manifest(self, 'D1')
+        return self.D1
     
     @property
     def D2(self) -> Manifest:
         """D2 upload manifest for platform json, plus extra methods for finding missing files."""
-        return Manifest(self, 'D2')
+        with contextlib.suppress(AttributeError):
+            return self._D2
+        self._D2 = Manifest(self, 'D2')
+        return self.D2
+    
+    def get_missing_files(self) -> tuple[str, ...]:
+        """Globs for D1 & D2 files that are missing from npexp"""
+        
+        missing_globs = [self.D1.globs[self.D1.names.index(_)] for _ in self.D1.missing]
+        missing_globs.extend(self.D2.globs[self.D2.names.index(_)] for _ in self.D2.missing)
+        missing_globs.extend(self.D2.globs_sorted_data[self.D2.names_sorted_data.index(_)] for _ in self.D2.missing_sorted_data)
+        return tuple(set(missing_globs))
     
     @cached_property
     def metrics_csv(self) -> tuple[pathlib.Path, ...]:
