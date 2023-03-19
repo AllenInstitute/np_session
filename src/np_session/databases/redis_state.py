@@ -118,5 +118,6 @@ def decode(value: bytes | None) -> AcceptedType:
         return eval(decoded_value.capitalize())
     return decoded_value
 
+
 if __name__ == "__main__":
-    doctest.testmod()
+    doctest.testmod(verbose=True)
