@@ -24,10 +24,11 @@ NEUROPIXELS_DATA_RELATIVE_PATH = pathlib.Path(
 NPEXP_PATH = pathlib.Path("//allen/programs/mindscope/workgroups/np-exp")
 
 QC_PATHS = (
+    NPEXP_PATH / 'qc',
     pathlib.Path(
         "//allen/programs/braintv/workgroups/nc-ophys/corbettb/NP_behavior_pipeline/QC"
     ),
     pathlib.Path("//allen/programs/mindscope/workgroups/openscope/GLO_QC"),
     pathlib.Path("//allen/programs/mindscope/workgroups/openscope/Illusion_QC"),
 )
-"Item 0 is used as default - currently Corbett's folder."
+"Item 0 is used as default - currently new np-exp/qc folder."
