@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import abc
+import datetime
 import enum
 import functools
-from typing import Any, MutableMapping
+import time
+from typing import Any, MutableMapping, Optional
 
 
 import np_logging
@@ -130,6 +132,7 @@ class Projects(enum.Enum):
         try:
             return State(str(self.name))
         except Exception as exc:
+    
             logger.error("Failed to load `%r.state`: %r", self, exc)
         return {}
     
@@ -164,3 +167,73 @@ class Project(InfoBaseClass):
             if self.id in _.value:
                 return _
         return None
+
+class WithState:
+    "Mixin for classes that have a `state` attribute for persisting metadata."
+    
+    id: int | str
+    """Unique identifier for the object. This is used as the key for the object's state in the database."""
+    
+    @property
+    def state(self) -> MutableMapping[str, Any]:
+        try:
+            return State(self.id)
+        except Exception as exc:
+            logger.error("Failed to load `%r.state`: %r", self, exc)
+        return {}
+    
+class Dye(WithState):
+    """Info about a DiI or DiO dye.
+    
+    >>> dye = Dye(1)
+    >>> dye.dii_description
+    'CM-DiI 100%'
+    >>> dye.previous_uses = 0
+    >>> dye.record_first_use(time.time())
+    >>> dye.increment_uses()
+    >>> dye.previous_uses
+    1
+    """
+    
+    def __init__(self, dye_id: int) -> None:
+        self.id = int(dye_id)
+        
+    @property
+    def previous_uses(self) -> int:
+        return self.state.setdefault('previous_uses', 0)
+    
+    @previous_uses.setter
+    def previous_uses(self, value: int) -> None:
+        self.state['previous_uses'] = int(value)
+    
+    @property
+    def dii_description(self) -> Literal['CM-DiI 100%', 'DiO']:
+        return self.state.setdefault('dii_description', 'CM-DiI 100%')
+    
+    @dii_description.setter
+    def dii_description(self, value: Literal['CM-DiI 100%', 'DiO']) -> None:
+        self.state['dii_description'] = value
+    
+    @property
+    def first_use(self) -> datetime.datetime | None:
+        first_use: float | None = self.state.get('first_use')
+        return datetime.datetime.fromtimestamp(first_use) if first_use else None
+    
+    def record_first_use(self, timestamp: Optional[float] = None) -> None:
+        """Record the time this dye was first used.
+        
+        Supply a `time.time()`, else the current time will be recorded.
+        """
+        self.state['first_use'] = time.time() if timestamp is None else timestamp
+    
+    def increment_uses(self):
+        """Increment the number of times this dye has been used."""
+        previous_uses = self.previous_uses
+        if previous_uses == 0:
+            self.record_first_use()
+        self.previous_uses = self.previous_uses + 1
+        
+        
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod(verbose=True, optionflags=doctest.IGNORE_EXCEPTION_DETAIL)
