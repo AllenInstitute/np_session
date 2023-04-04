@@ -83,9 +83,9 @@ class Manifest:
         for _ in self.globs:
             hits = tuple(path.glob(_))
             if len(hits) == 0:
-                logger.warning(f'No files found for glob: {path / _}')
+                logger.debug(f'No files found for glob: {path / _}')
             if len(hits) > 1:
-                logger.warning(f'Multiple files found for glob: {path / _} - {hits} - using first.')
+                logger.debug(f'Multiple files found for glob: {path / _} - {hits} - using first.')
             
             paths.append(hits[0] if hits else None)
         
@@ -96,7 +96,7 @@ class Manifest:
         return tuple(n for n, p in zip(self.names, self.paths) if p is None)
     
     
-    def get_sorted_data(self) -> tuple[pathlib.Path | None, ...]:
+    def get_sorted_data(self) -> None:
         self._names_sorted_data = []
         self._paths_sorted_data = []
         self._globs_sorted_data = []
@@ -107,27 +107,27 @@ class Manifest:
                 self._names_sorted_data.append(f'{name}_probe{probe}')
                 hits = tuple(self.session.npexp_path.glob(probe_glob))
                 if len(hits) == 0:
-                    logger.warning(f'No files found for glob: {self.session.npexp_path / probe_glob}')
+                    logger.debug(f'No files found for glob: {self.session.npexp_path / probe_glob}')
                 if len(hits) > 1:
-                    logger.warning(f'Multiple files found for glob: {self.session.npexp_path / probe_glob} - {hits} - using first.')
+                    logger.debug(f'Multiple files found for glob: {self.session.npexp_path / probe_glob} - {hits} - using first.')
                 self._paths_sorted_data.append(hits[0] if hits else None)
         
     @property
-    def names_sorted_data(self) -> tuple[str]:
+    def names_sorted_data(self) -> tuple[str, ...]:
         with contextlib.suppress(AttributeError):
             return tuple(self._names_sorted_data)
         self.get_sorted_data()
         return self.names_sorted_data
     
     @property    
-    def paths_sorted_data(self) -> tuple[pathlib.Path | None]:
+    def paths_sorted_data(self) -> tuple[pathlib.Path | None, ...]:
         with contextlib.suppress(AttributeError):
             return tuple(self._paths_sorted_data)
         self.get_sorted_data()
         return self.paths_sorted_data
     
     @property    
-    def globs_sorted_data(self) -> tuple[pathlib.Path | None]:
+    def globs_sorted_data(self) -> tuple[str, ...]:
         with contextlib.suppress(AttributeError):
             return tuple(self._globs_sorted_data)
         self.get_sorted_data()
@@ -145,6 +145,10 @@ class Manifest:
             elif isinstance(_, int):
                 self.session = np_session.session.Session(_)
                 break
+            elif isinstance(_, str):
+                with contextlib.suppress(ValueError):
+                    self.session = np_session.session.Session(_)
+                    break
         
         for _ in SESSION_TYPES:
             if _ in (*args, *kwargs.values()):
