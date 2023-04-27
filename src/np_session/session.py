@@ -558,14 +558,15 @@ def generate_session(
 
 
 def sessions(
-    root: str | pathlib.Path = NPEXP_ROOT,
     project: Optional[str | Projects] = None,
+    root: str | pathlib.Path = NPEXP_ROOT,
     session_type: Literal["ephys", "hab", "behavior"] = "ephys",
 ) -> Generator[Session, None, None]:
     """Find Session folders in a directory.
 
-    Project is the common-name among the neuropixels team: 'DR', 'GLO', 'VAR', 'ILLUSION'
-    (use the Project enum if unsure).
+    - `project` is the acronym used by the NP-ops team for the umbrella project:
+        'DR', 'GLO', 'VAR', 'ILLUSION', 'TTN'
+    - a `Projects` enum can also be used directly
     """
     root = pathlib.Path(root)
     

@@ -106,11 +106,14 @@ class Projects(enum.Enum):
     )
     GLO = ("OpenScopeGlobalLocalOddball",)
     ILLUSION = ("OpenScopeIllusion",)
-    DR = (
+    DRDG = (
         "DynamicRoutingSurgicalDevelopment",
         "DynamicRoutingDynamicGating",
         "DynamicRoutingTask1Production",
     )
+    """Dynamic Gating subset of DR."""
+    DR = DRDG
+    """All Dynamic Routing, including Dynamic Gating."""
     VB = ("NeuropixelVisualBehavior",)
     TTN = ('TaskTrainedNetworksNeuropixel',)
     NP = ('NeuropixelPlatformDevelopment',)
