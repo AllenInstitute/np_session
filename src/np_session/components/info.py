@@ -5,8 +5,7 @@ import datetime
 import enum
 import functools
 import time
-from typing import Any, MutableMapping, Optional
-
+from typing import Any, ClassVar, MutableMapping, Optional
 
 import np_logging
 from backports.cached_property import cached_property
@@ -189,7 +188,7 @@ class Dye(WithState):
     """Info about a DiI or DiO dye.
     
     >>> dye = Dye(1)
-    >>> dye.dii_description
+    >>> dye.description
     'CM-DiI 100%'
     >>> dye.previous_uses = 0
     >>> dye.record_first_use(time.time())
@@ -197,6 +196,8 @@ class Dye(WithState):
     >>> dye.previous_uses
     1
     """
+    
+    descriptions: ClassVar = ('CM-DiI 100%', 'DiO')
     
     def __init__(self, dye_id: int) -> None:
         self.id = int(dye_id)
@@ -210,23 +211,24 @@ class Dye(WithState):
         self.state['previous_uses'] = int(value)
     
     @property
-    def dii_description(self) -> Literal['CM-DiI 100%', 'DiO']:
-        return self.state.setdefault('dii_description', 'CM-DiI 100%')
+    def description(self) -> Literal['CM-DiI` 100%', 'DiO']:
+        return self.state.setdefault('description', self.descriptions[0])
     
-    @dii_description.setter
-    def dii_description(self, value: Literal['CM-DiI 100%', 'DiO']) -> None:
-        self.state['dii_description'] = value
+    @description.setter
+    def description(self, value: Literal['CM-DiI 100%', 'DiO']) -> None:
+        self.state['description'] = value
     
     @property
     def first_use(self) -> datetime.datetime | None:
         first_use: float | None = self.state.get('first_use')
         return datetime.datetime.fromtimestamp(first_use) if first_use else None
     
-    def record_first_use(self, timestamp: Optional[float] = None) -> None:
+    def record_first_use(self, timestamp: Optional[datetime.datetime | float] = None) -> None:
         """Record the time this dye was first used.
         
         Supply a `time.time()`, else the current time will be recorded.
         """
+        timestamp = timestamp.timestamp() if isinstance(timestamp, datetime.datetime) else timestamp
         self.state['first_use'] = time.time() if timestamp is None else timestamp
     
     def increment_uses(self):
