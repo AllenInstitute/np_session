@@ -8,6 +8,7 @@ import functools
 import itertools
 import os
 import pathlib
+import shutil
 from typing import Any, Callable, Generator, Iterable, MutableMapping, Optional, Union
 
 import np_config
@@ -603,12 +604,24 @@ def sessions(
 
 def cleanup_npexp():
     """Remove empty dirs, 366122 dirs, move habs"""
+    def remove_non_empty_dir(path: pathlib.Path):
+        shutil.rmtree(path, ignore_errors=True)
+        if not path.exists():
+            logger.info("Removed %s", path.name)
+        
     for _ in itertools.chain(NPEXP_ROOT.iterdir(), (NPEXP_ROOT / "habituation").iterdir()):
         if not _.is_dir():
             continue
-        if not any(_.iterdir()):
+        with contextlib.suppress(Exception):
             _.rmdir()
             logger.info("Removed empty dir %s", _.name)
+            continue
+        if '_366122_' in _.name:
+            remove_non_empty_dir(_)
+            continue
+        contents = tuple(_.iterdir())
+        if len(contents) == 1 and contents[0].suffix == ".json" and "platform" in contents[0].name:
+            remove_non_empty_dir(_)
             continue
         try:
             session = Session(_)
