@@ -391,6 +391,14 @@ class Session:
         return np_config.normalize_path(path) if path else None
     
     @property
+    def D0(self) -> Manifest:
+        """D0 upload manifest for platform json, plus extra methods for finding missing files."""
+        with contextlib.suppress(AttributeError):
+            return self._D0
+        self._D0 = Manifest(self, 'D0')
+        return self.D0
+    
+    @property
     def D1(self) -> Manifest:
         """D1 upload manifest for platform json, plus extra methods for finding missing files."""
         with contextlib.suppress(AttributeError):
@@ -408,11 +416,12 @@ class Session:
     
     def get_missing_files(self) -> tuple[str, ...]:
         """Globs for D1 & D2 files that are missing from npexp"""
-        
         missing_globs = [self.D1.globs[self.D1.names.index(_)] for _ in self.D1.missing]
         missing_globs.extend(self.D2.globs[self.D2.names.index(_)] for _ in self.D2.missing)
-        missing_globs.extend(self.D2.globs_sorted_data[self.D2.names_sorted_data.index(_)] for _ in self.D2.missing_sorted_data)
-        return tuple(set(missing_globs))
+        missing_globs.extend(self.D2.globs_sorted_data[self.D2.names_sorted_data.index(_)] for _ in self.D2.missing_sorted_data
+                             if not any(f'probe_{_[-1]}' in __ for __ in self.D2.missing)
+                             ) # don't add each individual missing sorted file if we already added their parent probeX_sorted folder
+        return tuple(dict.fromkeys(missing_globs))
     
     @cached_property
     def metrics_csv(self) -> tuple[pathlib.Path, ...]:
