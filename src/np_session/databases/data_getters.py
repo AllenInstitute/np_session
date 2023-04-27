@@ -16,7 +16,6 @@ from typing import ClassVar
 import psycopg2
 import psycopg2.extras
 
-
 class NoBehaviorSessionError(Exception):
     pass
 
@@ -539,10 +538,12 @@ class local_data_getter(data_getter):
             "EcephysBrainSurfaceLeft",
             "EcephysBrainSurfaceRight",
         ]
-
+        from np_session.components.lims_manifests import Manifest, MANIFESTS
+        manifest = Manifest(self.base_dir)
+        
         for im in image_files:
-            im_info = D1_local[im]
-            im_file = glob_file(os.path.join(self.base_dir, im_info["rel_path"]))
+            rel_path = manifest.globs[manifest.names.index(MANIFESTS['_lims_name'][im])]
+            im_file = glob_file(os.path.join(self.base_dir, rel_path))
 
             self.data_dict[im] = im_file
 
@@ -590,5 +591,4 @@ def convert_path_str_to_pathlib(data_dict_orig) -> dict:
 
 if __name__ == "__main__":
     import doctest
-
     doctest.testmod()
