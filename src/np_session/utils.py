@@ -42,8 +42,9 @@ REPLACED_COMP_ID: dict[str, tuple[datetime.date, str]] = {
     "NP.0-Acq": (datetime.date(2022, 10, 18), "W10DT05515"),
     "NP.1-Acq": (datetime.date(2022, 10, 27), "W10DT05501"),
     "NP.2-Acq": (datetime.date(2022, 7, 14), "W10DT05517"),
-    "NP.0-Stim": (datetime.date(2023, 2, 7), "W10DT713938"),
-    "NP.1-Stim": (datetime.date(2023, 1, 19), "W10DT713942"),
+    "NP.0-Stim": (datetime.date(2023, 2, 7), "W10DTSM112721"),
+    "NP.1-Stim": (datetime.date(2023, 1, 19), "W10DTSM118294"),
+    "NP.2-Stim": (datetime.date(2023, 3, 15), "W10DTSM118295"),
 }
 
 
