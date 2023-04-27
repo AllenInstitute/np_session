@@ -56,7 +56,23 @@ class Manifest:
             self.session_type = 'D1'
             
         self.fetch_from_zk()
+        self.remove_non_inserted_probes() # does nothing if no self.session 
     
+    def remove_non_inserted_probes(self) -> None:
+        if self.session is None:
+            return
+        probes_inserted = self.session.probes_inserted
+        include_idx = tuple(
+                i
+                for i, name in enumerate(self.names)
+                if (
+                    'probe_' not in name # not a probe field - skip
+                    or any(f'probe_{letter.upper()}' in name for letter in probes_inserted)
+                )
+            )
+        self.names, self.globs, self.types = (tuple(_[i] for i in include_idx) for _ in (self.names, self.globs, self.types))
+
+                
     @property
     def files(self) -> dict[str, dict[str, str]]:
         """Upload manifest for platform json: `{name: {type: session + glob}}, ...}`"""
@@ -100,11 +116,14 @@ class Manifest:
         self._names_sorted_data = []
         self._paths_sorted_data = []
         self._globs_sorted_data = []
-        for probe in 'ABCDEF':
+        for probe in ('ABCDEF' if self.session is None else self.session.probes_inserted):
             for name, glob in MANIFESTS['_name_glob']['sorted_data'].items():
                 probe_glob =f'*_probe{probe}{glob}'
                 self._globs_sorted_data.append(probe_glob)
                 self._names_sorted_data.append(f'{name}_probe{probe}')
+                if self.session is None:
+                    logger.warning(f'No session provided to {self.__class__} - cannot get sorted data paths.')
+                    return
                 hits = tuple(self.session.npexp_path.glob(probe_glob))
                 if len(hits) == 0:
                     logger.debug(f'No files found for glob: {self.session.npexp_path / probe_glob}')
@@ -135,6 +154,9 @@ class Manifest:
     
     @property
     def missing_sorted_data(self) -> tuple[str]:
+        if self.session is None:
+            logger.warning(f'No session provided to {self.__class__} - cannot get sorted data paths.')
+            return tuple()
         return tuple(n for n, p in zip(self.names_sorted_data, self.paths_sorted_data) if p is None)
     
     def parse_input_args(self, *args, **kwargs) -> None:
