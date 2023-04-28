@@ -17,11 +17,10 @@ import subprocess
 import sys
 from typing import Union
 
-from typing_extensions import Literal
-from backports.cached_property import cached_property
-
 import np_logging
 import requests
+from backports.cached_property import cached_property
+from typing_extensions import Literal
 
 import np_session.components.paths as paths
 from np_session.databases.data_getters import lims_data_getter
@@ -122,7 +121,7 @@ def lims_session_id(path: PathLike) -> str | None:
             return i
 
 
-def folder(path: PathLike) -> str | None:
+def get_lims_session_folder(path: PathLike) -> str | None:
     """
     Extract [8+digit lims session ID]_[6-digit labtracks mouse ID]_[6-digit datestr] from a str or path.
 

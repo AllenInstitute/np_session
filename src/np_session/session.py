@@ -9,7 +9,8 @@ import itertools
 import os
 import pathlib
 import shutil
-from typing import Any, Callable, Generator, Iterable, MutableMapping, Optional, Union
+from typing import Any, Callable, Generator, Iterable, MutableMapping, Optional, Type, TypeVar, Union
+import warnings
 
 import np_config
 import np_logging
@@ -45,6 +46,8 @@ class FilepathIsDirError(ValueError):
     """Raised when a directory is specified but a filepath is required"""
 
     pass
+
+SessionT = TypeVar("SessionT", bound="Session")
 
 
 class Session:
@@ -96,7 +99,45 @@ class Session:
     >>> str(session.rig)        # see np_config.Rig
     'NP.0'
     """
+    
+    def __new__(cls, *args, **kwargs) -> Session:
+        """Initialize a Session object from any string or PathLike containing a
+        lims session ID.
+        
+        Class will be cast as a Session subclass type as appropriate.
+        """
+        if cls is __class__:
+            subclass = cls.subclass_from_factory(*args, **kwargs)
+            return super(__class__, cls).__new__(subclass)
+        return super(__class__, cls).__new__(cls)
+    
 
+    @staticmethod 
+    def subclass_from_factory(*args, **kwargs) -> Type[Session]:
+        for subclass in __class__.__subclasses__():
+            for value in (*args, kwargs.values()):
+                if subclass.get_folder(str(value)) is not None:
+                    logger.debug(f"Using {subclass.__name__} for {value}")
+                    return subclass
+        raise SessionError(f"No appropriate Session class found for {args} {kwargs}")
+  
+
+    @property
+    @abc.abstractmethod
+    def id(self) -> int | str:
+        """Unique identifier for the session, e.g. lims ecephys session ID"""
+
+    @property
+    @abc.abstractmethod
+    def folder(self) -> str:
+        """Folder name for the session, e.g. '1116941914_576323_20210721'"""
+    
+    @staticmethod
+    @abc.abstractmethod
+    def get_folder(path: str | int | PathLike) -> str:
+        """Extract the session folder from a path or session ID"""
+    
+    
     def __lt__(self, other: Session) -> bool:
         if not hasattr(other, "date"):
             return NotImplemented
@@ -118,16 +159,37 @@ class Session:
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.folder!r})"
 
+    @property
+    def npexp_path(self) -> pathlib.Path:
+        """np-exp root / folder (may not exist)"""
+        return NPEXP_ROOT / self.folder
+    
+    @property
+    def mouse(self) -> Mouse:
+        if not hasattr(self, "_mouse"):
+            self._mouse = Mouse(self.folder.split("_")[1])
+        return self._mouse
+
+    @cached_property
+    def date(self) -> datetime.date:
+        d = self.folder.split("_")[2]
+        date = datetime.date(year=int(d[:4]), month=int(d[4:6]), day=int(d[6:]))
+        return date
+
+
+class LimsSession(Session):
+    
+    folder: str
+    """Session folder string ([lims-id]_[mouse-id]_[date])"""
+    id: int
+    """LIMS session ID (ephys for ecephys/hab, behavior for behavior)"""
     def __init__(self, path_or_session: PathLike | int | LIMS2SessionInfo):
         path_or_session = str(path_or_session)
 
         path_or_session = pathlib.Path(path_or_session)
 
-        np_folder = folder(path_or_session)
-
-        if not np_folder:
-            np_folder = folder_from_lims_id(path_or_session)
-
+        np_folder = self.get_folder(path_or_session)
+        
         if np_folder is None:
             raise SessionError(
                 f"{path_or_session} does not contain a valid lims session id or session folder string"
@@ -139,6 +201,10 @@ class Session:
         if isinstance(path_or_session, LIMS2SessionInfo):
             self._lims = path_or_session
 
+    @staticmethod
+    def get_folder(value: int | str | PathLike) -> str | None:
+        return get_lims_session_folder(value)
+    
     @property
     def lims(self) -> lims.LIMS2SessionInfo | dict:
         """
@@ -160,11 +226,6 @@ class Session:
                 self._lims = {}
         return self._lims
 
-    @property
-    def mouse(self) -> Mouse:
-        if not hasattr(self, "_mouse"):
-            self._mouse = Mouse(self.folder.split("_")[1])
-        return self._mouse
 
     @property
     def user(self) -> User | None:
@@ -175,12 +236,6 @@ class Session:
             else:
                 self._user = None
         return self._user
-
-    @cached_property
-    def date(self) -> datetime.date:
-        d = self.folder.split("_")[2]
-        date = datetime.date(year=int(d[:4]), month=int(d[4:6]), day=int(d[6:]))
-        return date
 
     @property
     def rig(self) -> np_config.Rig | None:
@@ -238,7 +293,7 @@ class Session:
         if not self.lims:
             return None
         return self.lims.get('name', '').startswith('HAB')
-    
+        
     @property
     def npexp_path(self) -> pathlib.Path:
         """np-exp root / folder (may not exist)"""
@@ -535,7 +590,82 @@ class Session:
         for letter, info in zip(probe_letters, probe_info):
             result = json.loads(pathlib.Path(info).read_bytes()).get('probe', {}).get('serial number')
             mapping[letter] = int(result) if result else None
+
+
+class DRPilotSession(Session):
+    
+    storage_dirs: ClassVar[tuple[pathlib.Path, ...]] = tuple(
+        pathlib.Path(_) for _ in
+            (
+                '//10.128.50.140/Data2',
+                '//allen/programs/mindscope/workgroups/dynamicrouting/PilotEphys/Task 2 pilot',
+                '//allen/programs/mindscope/workgroups/np-exp/PilotEphys/Task 2 pilot',
+            ))
+    """Various directories where DRpilot sessions are stored - use `npexp_path`
+    to get the session folder that exists."""
+    
+    def __init__(self, path_or_session: PathLike) -> None:
+        try:
+            self.folder = path_or_session
+        except ValueError as exc:
+            raise SessionError(
+                f"Input does not contain a DRpilot session(e.g. DRpilot_366122_20220618): {path_or_session}"
+            ) from exc
+        
+        if pathlib.Path(path_or_session).exists():
+            self.npexp_path = pathlib.Path(path_or_session)
             
+        logger.debug("%s initialized %s", self.__class__.__name__, self.folder)
+    
+    @property
+    def id(self) -> str:
+        """Same as `folder`."""
+        return self.folder
+
+    @property    
+    def folder(self) -> str:
+        """Folder name, e.g. `DRpilot_[labtracks ID]_[8-digit date]`."""
+        return self._folder
+    
+    @folder.setter
+    def folder(self, value: str | PathLike) -> None:
+        folder = self.get_folder(value)
+        if folder is None:
+            raise ValueError(f"Session folder must be in the format `DRpilot_[6-digit mouse ID]_[8-digit date str]`: {value}")
+        self._folder = value
+        
+    @staticmethod
+    def get_folder(path: str | pathlib.Path) -> str | None:
+        """Extract [DRpilot_[6-digit mouse ID]_[8-digit date str] from a string or
+        path.
+        """
+        # from filesystem
+        session_reg_exp = R"DRpilot_[0-9]{6}_[0-9]{8}"
+        session_folders = re.findall(session_reg_exp, str(path), re.IGNORECASE)
+        if session_folders:
+            return session_folders[0]
+
+    @property
+    def npexp_path(self) -> pathlib.Path:
+        with contextlib.suppress(AttributeError):
+            return self._npexp_path
+        for _ in self.storage_dirs:
+            path = _ / self.folder
+            if path.exists():
+                self.npexp_path = path
+                break
+        return self.npexp_path
+
+    @npexp_path.setter
+    def npexp_path(self, value: pathlib.Path) -> None:
+        logger.debug('Setting %s npexp_path to %s', self, value)
+        self._npexp_path = value
+
+    @property
+    def lims(self) -> dict:
+        warnings.warn("LIMS info not available: LIMS sessions weren't created for for DRPilot experiments.")
+        return {}
+    
 def generate_session(
     mouse: str | int | Mouse,
     user: str | User,
@@ -551,7 +681,7 @@ def generate_session(
         lims_session = lims.generate_hab_session(mouse=mouse.lims, user=user.lims)
     elif session_type == "behavior":
         raise ValueError("Generating behavior sessions is not yet supported")
-    session = Session(lims_session)
+    session = LimsSession(lims_session)
     # assign instances with data already fetched from lims:
     session._mouse = mouse
     session._user = user
@@ -562,7 +692,7 @@ def sessions(
     project: Optional[str | Projects] = None,
     root: str | pathlib.Path = NPEXP_ROOT,
     session_type: Literal["ephys", "hab", "behavior"] = "ephys",
-) -> Generator[Session, None, None]:
+) -> Generator[LimsSession, None, None]:
     """Find Session folders in a directory.
 
     - `project` is the acronym used by the NP-ops team for the umbrella project:
@@ -578,7 +708,7 @@ def sessions(
         if not path.is_dir():
             continue
         try:
-            session = Session(path)
+            session = LimsSession(path)
         except (SessionError, FilepathIsDirError):
             continue
         
@@ -624,7 +754,7 @@ def cleanup_npexp():
             remove_non_empty_dir(_)
             continue
         try:
-            session = Session(_)
+            session = LimsSession(_)
         except SessionError:
             continue
         if session.is_hab and _.parent == NPEXP_ROOT:
@@ -657,10 +787,13 @@ def latest_session(
     return Session(session)
 
 if __name__ == "__main__":
-
+    np_logging.getLogger()
+    session = DRPilotSession('c:/DRpilot_366122_20220822_surface-image1-left.png')
+    session = Session('c:/DRpilot_366122_20220822_surface-image1-left.png')
+    # cleanup_npexp()
     if is_connected("lims2"):
         doctest.testmod(verbose=True)
-        # optionflags=(doctest.ELLIPSIS, doctest.NORMALIZE_WHITESPACE,
-        # doctest.IGNORE_EXCEPTION_DETAIL)
+        optionflags=(doctest.ELLIPSIS, doctest.NORMALIZE_WHITESPACE,
+        doctest.IGNORE_EXCEPTION_DETAIL)
     else:
         print("LIMS not connected - skipping doctests")
