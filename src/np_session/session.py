@@ -9,8 +9,9 @@ import itertools
 import os
 import pathlib
 import shutil
-from typing import Any, Callable, Generator, Iterable, MutableMapping, Optional, Type, TypeVar, Union
 import warnings
+from typing import (Any, Callable, Generator, Iterable, MutableMapping,
+                    Optional, Type, TypeVar, Union)
 
 import np_config
 import np_logging
@@ -18,9 +19,9 @@ from backports.cached_property import cached_property
 from typing_extensions import Literal
 
 from np_session.components.info import Mouse, Project, Projects, User
+from np_session.components.lims_manifests import Manifest
 from np_session.components.paths import *
 from np_session.components.platform_json import *
-from np_session.components.lims_manifests import Manifest
 from np_session.databases import State
 from np_session.databases import data_getters as dg
 from np_session.databases import lims2 as lims
@@ -48,7 +49,6 @@ class FilepathIsDirError(ValueError):
     pass
 
 SessionT = TypeVar("SessionT", bound="Session")
-
 
 class Session:
     """Session information from any string or PathLike containing a lims session ID.
@@ -107,31 +107,27 @@ class Session:
         Class will be cast as a Session subclass type as appropriate.
         """
         if cls is __class__:
-            subclass = cls.subclass_from_factory(*args, **kwargs)
-            return super(__class__, cls).__new__(subclass)
-        return super(__class__, cls).__new__(cls)
-    
+            subclass = __class__.subclass_from_factory(*args, **kwargs)
+            return object.__new__(subclass)
+        return object.__new__(cls)
 
-    @staticmethod 
+    @staticmethod
     def subclass_from_factory(*args, **kwargs) -> Type[Session]:
         for subclass in __class__.__subclasses__():
             for value in (*args, kwargs.values()):
                 if subclass.get_folder(str(value)) is not None:
                     logger.debug(f"Using {subclass.__name__} for {value}")
                     return subclass
-        raise SessionError(f"No appropriate Session class found for {args} {kwargs}")
-  
+        raise SessionError(f"Could not find an aapropriate Session subclass for {args} {kwargs}")
 
-    @property
-    @abc.abstractmethod
-    def id(self) -> int | str:
-        """Unique identifier for the session, e.g. lims ecephys session ID"""
+    id: int | str
+    """Unique identifier for the session, e.g. lims ecephys session ID"""
 
-    @property
-    @abc.abstractmethod
-    def folder(self) -> str:
-        """Folder name for the session, e.g. '1116941914_576323_20210721'"""
+    folder: str
+    """Folder name for the session, e.g. '1116941914_576323_20210721'"""
     
+    project: str | Project | None
+   
     @staticmethod
     @abc.abstractmethod
     def get_folder(path: str | int | PathLike) -> str:
@@ -176,13 +172,17 @@ class Session:
         date = datetime.date(year=int(d[:4]), month=int(d[4:6]), day=int(d[6:]))
         return date
 
-
-class LimsSession(Session):
+    is_ecephys: Optional[bool] = None
+    is_ecephys_session = is_ecephys # alias for backwards compatibility
+    is_hab: Optional[bool] = None
+    rig: Optional[str | np_config.Rig] = None
+    """Rig ID, e.g. 'NP.0'"""
     
-    folder: str
-    """Session folder string ([lims-id]_[mouse-id]_[date])"""
+    
+class PipelineSession(Session):
     id: int
     """LIMS session ID (ephys for ecephys/hab, behavior for behavior)"""
+    
     def __init__(self, path_or_session: PathLike | int | LIMS2SessionInfo):
         path_or_session = str(path_or_session)
 
@@ -205,6 +205,18 @@ class LimsSession(Session):
     def get_folder(value: int | str | PathLike) -> str | None:
         return get_lims_session_folder(value)
     
+    @property    
+    def folder(self) -> str:
+        """Folder name, e.g. `[lims session ID]_[labtracks ID]_[8-digit date]`."""
+        return self._folder
+    
+    @folder.setter
+    def folder(self, value: str | PathLike) -> None:
+        folder = self.get_folder(value)
+        if folder is None:
+            raise ValueError(f"Session folder must be in the format `[lims session ID]_[6-digit mouse ID]_[8-digit date str]`: {value}")
+        self._folder = folder
+        
     @property
     def lims(self) -> lims.LIMS2SessionInfo | dict:
         """
@@ -278,7 +290,7 @@ class LimsSession(Session):
                 setattr(self._rig, f"_{comp}", replaced)
 
     @property
-    def is_ecephys_session(self) -> bool | None:
+    def is_ecephys(self) -> bool | None:
         """False if behavior session in lims, None if unsure.
         
         Note that habs are classed as ecephys sessions: use `is_hab`.
@@ -286,7 +298,7 @@ class LimsSession(Session):
         if not self.lims or not self.lims.get("ecephys_session"):
             return None
         return "ecephys_session" in self.lims['ecephys_session']
-
+    
     @property
     def is_hab(self) -> bool | None:
         """False if hab session, None if unsure."""
@@ -594,6 +606,9 @@ class LimsSession(Session):
 
 class DRPilotSession(Session):
     
+    is_ecephys_session = True # not dealing with habs
+    project = 'DRpilot'
+    
     storage_dirs: ClassVar[tuple[pathlib.Path, ...]] = tuple(
         pathlib.Path(_) for _ in
             (
@@ -632,7 +647,7 @@ class DRPilotSession(Session):
         folder = self.get_folder(value)
         if folder is None:
             raise ValueError(f"Session folder must be in the format `DRpilot_[6-digit mouse ID]_[8-digit date str]`: {value}")
-        self._folder = value
+        self._folder = folder
         
     @staticmethod
     def get_folder(path: str | pathlib.Path) -> str | None:
@@ -666,6 +681,8 @@ class DRPilotSession(Session):
         warnings.warn("LIMS info not available: LIMS sessions weren't created for for DRPilot experiments.")
         return {}
     
+    
+    
 def generate_session(
     mouse: str | int | Mouse,
     user: str | User,
@@ -681,7 +698,7 @@ def generate_session(
         lims_session = lims.generate_hab_session(mouse=mouse.lims, user=user.lims)
     elif session_type == "behavior":
         raise ValueError("Generating behavior sessions is not yet supported")
-    session = LimsSession(lims_session)
+    session = PipelineSession(lims_session)
     # assign instances with data already fetched from lims:
     session._mouse = mouse
     session._user = user
@@ -692,7 +709,7 @@ def sessions(
     project: Optional[str | Projects] = None,
     root: str | pathlib.Path = NPEXP_ROOT,
     session_type: Literal["ephys", "hab", "behavior"] = "ephys",
-) -> Generator[LimsSession, None, None]:
+) -> Generator[PipelineSession, None, None]:
     """Find Session folders in a directory.
 
     - `project` is the acronym used by the NP-ops team for the umbrella project:
@@ -708,7 +725,7 @@ def sessions(
         if not path.is_dir():
             continue
         try:
-            session = LimsSession(path)
+            session = PipelineSession(path)
         except (SessionError, FilepathIsDirError):
             continue
         
@@ -754,7 +771,7 @@ def cleanup_npexp():
             remove_non_empty_dir(_)
             continue
         try:
-            session = LimsSession(_)
+            session = PipelineSession(_)
         except SessionError:
             continue
         if session.is_hab and _.parent == NPEXP_ROOT:
@@ -775,9 +792,9 @@ def latest_session(
         if project.upper() in Projects.__members__:
             project = Projects[project.upper()]
             
-    session: int | None = None
+    session: str | int | None = None
     if isinstance(project, Projects):
-        session = project.get_latest_session(session_type)
+        session = project.latest_session(session_type)
     if isinstance(project, Project):
         session = project.state.get(f'latest_{session_type}')
     if session is None:
@@ -790,6 +807,8 @@ if __name__ == "__main__":
     np_logging.getLogger()
     session = DRPilotSession('c:/DRpilot_366122_20220822_surface-image1-left.png')
     session = Session('c:/DRpilot_366122_20220822_surface-image1-left.png')
+    session = Session('c:/1116941914_576323_20210721_surface-image1-left.png')
+    session = PipelineSession('c:/1116941914_576323_20210721_surface-image1-left.png')
     # cleanup_npexp()
     if is_connected("lims2"):
         doctest.testmod(verbose=True)

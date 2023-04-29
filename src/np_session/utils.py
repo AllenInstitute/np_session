@@ -153,29 +153,6 @@ def folder_from_lims_id(path: PathLike) -> str | None:
     session_id = lims_session_id(path)
     if session_id is None:
         return None
-    lims_data = lims_data_getter(session_id)
-    return ("_").join(
-        [
-            lims_data.lims_id,
-            lims_data.data_dict["external_specimen_name"],
-            lims_data.data_dict["datestring"],
-        ]
-    )
-
-
-def folder_from_lims_id(path: PathLike) -> str | None:
-    """
-    Get the session folder string ([lims-id]_[mouse-id]_[date]) from a string or path containing a possible lims id.
-
-    >>> folder_from_lims_id('//allen/programs/mindscope/production/dynamicrouting/prod0/specimen_1200280254/ecephys_session_1234028213')
-    '1234028213_640887_20221219'
-
-    >>> folder_from_lims_id('1234028213')
-    '1234028213_640887_20221219'
-    """
-    session_id = lims_session_id(path)
-    if session_id is None:
-        return None
     return LIMS2SessionInfo(session_id).folder
 
 
