@@ -20,9 +20,9 @@ dependencies = [
     "np_config>=0.4.17",
     "backports.cached-property",
     "firebase-admin>=6.1.0",
-    "redis>=4.5.1",
     "pydantic>=1.10.5",
     "np-tools>=0.1.4",
+    "redis<4.0", # redis>=4.0 adds async-timeout>=4.0: AllenSDK pins aiohttp ver with async-timeout < 4.0
 ]
 
 [project.urls]
