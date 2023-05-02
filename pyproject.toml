@@ -1,6 +1,6 @@
 [project]
 name = "np-session"
-version = "0.5.4"
+version = "0.6.0"
 description = "Tools for accessing data, metadata, and jobs related to ecephys and behavior sessions for the Mindscope Neuropixels team."
 authors = [
     { name = "Ben Hardcastle", email = "ben.hardcastle@alleninstitute.org" },
@@ -13,16 +13,16 @@ classifiers = [
 requires-python = ">=3.7"
 readme = "README.md"
 dependencies = [
+    "np_logging>=0.3.8",
+    "np_config>=0.4.17",
+    "np-tools>=0.1.6",
     "typing-extensions>=4",
     "psycopg2-binary>=2",
     "requests>=2",
-    "np_logging>=0.3.8",
-    "np_config>=0.4.17",
     "backports.cached-property",
     "firebase-admin>=6.1.0",
     "pydantic>=1.10.5",
-    "np-tools>=0.1.4",
-    "redis<4.0", # redis>=4.0 adds async-timeout>=4.0: AllenSDK pins aiohttp ver with async-timeout < 4.0
+    "redis<=4.1.4", # redis>=4.1.4 adds async-timeout>=4.0: AllenSDK pins aiohttp ver with async-timeout < 4.0
 ]
 
 [project.urls]
@@ -109,6 +109,9 @@ source = [
 
 [tool.coverage.report]
 show_missing = true
+
+[tool.ruff]
+ignore-init-module-imports = true
 
 [build-system]
 requires = [
