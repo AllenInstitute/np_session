@@ -5,11 +5,11 @@ import datetime
 import enum
 import functools
 import time
-from typing import Any, ClassVar, MutableMapping, Optional
+from typing import Any, ClassVar, Mapping, MutableMapping, Optional, TypeVar
 
 import np_logging
 from backports.cached_property import cached_property
-from typing_extensions import Literal
+from typing_extensions import Literal, Protocol, runtime_checkable
 
 from np_session.databases import State
 from np_session.databases.lims2 import (LIMS2MouseInfo, LIMS2ProjectInfo,
@@ -41,7 +41,37 @@ class InfoBaseClass(abc.ABC):
         return hash(self.id) ^ hash(self.__class__.__name__)
     
 
-class Mouse(InfoBaseClass):
+@runtime_checkable
+class WithLims(Protocol):
+    """Potocol for types that have a `lims` attribute for accessing relevant
+    lims2 data.
+    """
+    
+    id: int | str
+    """Lims2 ID for the object."""
+    
+    lims: dict = {}
+    """lims2 data as a dict (may be empty)."""
+    
+@runtime_checkable
+class WithState(Protocol):
+    """Protocol for types that have a `state` attribute for persisting
+    metadata. Can also be used as a mixin to provide basic state implementation.
+    """
+    
+    id: int | str
+    """Unique identifier for the object. This is used as the key for the object's state in the database."""
+    
+    @property
+    def state(self) -> MutableMapping[str, Any]:
+        try:
+            return State(self.id)
+        except Exception as exc:
+            logger.error("Failed to load `%r.state`: %r", self, exc)
+        return {}
+
+
+class Mouse(WithLims, WithState, InfoBaseClass):
     def __init__(self, labtracks_mouse_id: str | int):
         self.id = int(labtracks_mouse_id)
 
@@ -65,15 +95,8 @@ class Mouse(InfoBaseClass):
         "Project associated with the mouse."
         return self.lims.project_name if self.lims else None
     
-    @property
-    def state(self) -> MutableMapping[str, Any]:
-        try:
-            return State(self.id)
-        except Exception as exc:
-            logger.error("Failed to load `%r.state`: %r", self, exc)
-        return {}
     
-class User(InfoBaseClass):
+class User(WithState, InfoBaseClass):
     def __init__(self, lims_user_id: str):
         self.id = str(lims_user_id)
 
@@ -86,15 +109,9 @@ class User(InfoBaseClass):
             except ValueError:
                 self._lims = {}
         return self._lims
-    
-    @property
-    def state(self) -> MutableMapping[str, Any]:
-        try:
-            return State(self.id)
-        except Exception as exc:
-            logger.error("Failed to load `%r.state`: %r", self, exc)
-        return {}
 
+# class ProjectsEnum(abc.ABCMeta, enum.EnumMeta, type):
+#     pass
 
 class Projects(enum.Enum):
     "All specific project names (used on lims) associated with each umbrella project."
@@ -111,13 +128,27 @@ class Projects(enum.Enum):
         "DynamicRoutingTask1Production",
     )
     """Dynamic Gating subset of DR."""
-    DR = DRDG
-    """All Dynamic Routing, including Dynamic Gating."""
+    DRPILOT = ("DRPilot",)
+    DR = DRDG + DRPILOT
+    """All Dynamic Routing, including Dynamic Gating & DRpilot."""
     VB = ("NeuropixelVisualBehavior",)
     TTN = ('TaskTrainedNetworksNeuropixel',)
     NP = ('NeuropixelPlatformDevelopment',)
     
-    def get_latest_session(self, session_type: Literal['ephys', 'hab', 'behavior'] = 'ephys') -> int | None:
+    @property
+    def id(self) -> str:
+        return str(self.name)
+    
+    @property
+    def state(self) -> MutableMapping[str, Any]:
+        try:
+            return State(self.id)
+        except Exception as exc:
+            logger.error("Failed to load `%r.state`: %r", self, exc)
+        return {}
+    
+    @property
+    def latest_session(self, session_type: Literal['ephys', 'hab', 'behavior'] = 'ephys') -> int | None:
         "Lims session id for latest session for all child projects."
         for _ in self.value:
             session_id = Project(_).state.get(f'latest_{session_type}')
@@ -125,21 +156,18 @@ class Projects(enum.Enum):
                 return session_id
         return None
     
-    get_latest_ephys = functools.partialmethod(get_latest_session, 'ephys')
-    get_latest_hab = functools.partialmethod(get_latest_session, 'hab')
-    get_latest_behavior = functools.partialmethod(get_latest_session, 'behavior')
+    @latest_session.setter
+    def latest_session(self, session_id: int) -> None:
+        for _ in self.value:
+            Project(_).state[f'latest_session'] = session_id
     
-    @property
-    def state(self) -> MutableMapping[str, Any]:
-        try:
-            return State(str(self.name))
-        except Exception as exc:
-    
-            logger.error("Failed to load `%r.state`: %r", self, exc)
-        return {}
+    latest_ephys = functools.partialmethod(latest_session, 'ephys')
+    latest_hab = functools.partialmethod(latest_session, 'hab')
+    latest_behavior = functools.partialmethod(latest_session, 'behavior')
+
     
     
-class Project(InfoBaseClass):
+class Project(WithState, InfoBaseClass):
     
     def __init__(self, lims_project_name: str):
         self.id = str(lims_project_name)
@@ -153,15 +181,7 @@ class Project(InfoBaseClass):
         if isinstance(other, Projects):
             return self.id in other.value
         return super().__eq__(other)
-    
-    @property
-    def state(self) -> MutableMapping[str, Any]:
-        try:
-            return State(self.id)
-        except Exception as exc:
-            logger.error("Failed to load `%r.state`: %r", self, exc)
-        return {}
-    
+
     @property
     def parent(self) -> Projects | None:
         "Parent project if it exists."
@@ -170,19 +190,6 @@ class Project(InfoBaseClass):
                 return _
         return None
 
-class WithState:
-    "Mixin for classes that have a `state` attribute for persisting metadata."
-    
-    id: int | str
-    """Unique identifier for the object. This is used as the key for the object's state in the database."""
-    
-    @property
-    def state(self) -> MutableMapping[str, Any]:
-        try:
-            return State(self.id)
-        except Exception as exc:
-            logger.error("Failed to load `%r.state`: %r", self, exc)
-        return {}
     
 class Dye(WithState):
     """Info about a DiI or DiO dye.

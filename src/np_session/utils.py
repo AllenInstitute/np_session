@@ -111,7 +111,7 @@ def lims_session_id(path: PathLike) -> str | None:
     '1234028213'
     """
 
-    path = os.fsdecode(path)
+    path = str(path)
     if is_lims_path(path):
         from_lims_path = re.search("(?<=_session_)\\d+", os.fsdecode(path))
         if from_lims_path:
@@ -121,15 +121,15 @@ def lims_session_id(path: PathLike) -> str | None:
             return i
 
 
-def get_lims_session_folder(path: PathLike) -> str | None:
+def get_lims_session_folder(path: int | PathLike) -> str | None:
     """
     Extract [8+digit lims session ID]_[6-digit labtracks mouse ID]_[6-digit datestr] from a str or path.
 
-    >>> folder('//allen/programs/mindscope/workgroups/np-exp/1234028213_640887_20221219/image.png')
+    >>> get_lims_session_folder('//allen/programs/mindscope/workgroups/np-exp/1234028213_640887_20221219/image.png')
     '1234028213_640887_20221219'
     """
 
-    session_folders = RE_FOLDER.findall(os.fsdecode(path))
+    session_folders = RE_FOLDER.findall(str(path))
 
     if not session_folders:
         return folder_from_lims_id(path)
