@@ -3,6 +3,10 @@
 
 ### *For use on internal Allen Institute network*
 
+A lightweight package for handling file paths and metadata associated with
+Mindscope Neuropixels experiments with data on local rig-connected machines or
+the /allen network.
+Provides an interface that can be used by other applications.
 
 ```python
 >>> from np_session import Session
@@ -13,7 +17,7 @@
 1116941914
 >>> session.folder
 '1116941914_576323_20210721'
->>> session.is_ecephys_session
+>>> session.is_ecephys
 True
 >>> session.rig.acq # hostnames reflect the computers used during the session, not necessarily the current machines
 'W10DT05515'
