@@ -1,43 +1,28 @@
 from __future__ import annotations
 
 import contextlib
-import copy
 import datetime
 import doctest
-import functools
-import itertools
-import os
 import pathlib
-import shutil
 import warnings
-from typing import (Any, Callable, Generator, Iterable, MutableMapping,
-                    Optional, Type, TypeVar, Union)
 
 import np_config
 import np_logging
-from backports.cached_property import cached_property
-from typing_extensions import Literal
 
-from np_session.components.info import Mouse, Project, Projects, User
-from np_session.components.lims_manifests import Manifest
 from np_session.components.paths import *
 from np_session.components.platform_json import *
-from np_session.databases import State
-from np_session.databases import data_getters as dg
-from np_session.databases import lims2 as lims
-from np_session.databases import mtrain
 from np_session.utils import *
 from np_session.session import Session
-from np_session.exceptions import SessionError, FilepathIsDirError
 
 logger = np_logging.getLogger(__name__)
+
 
 class DRPilotSession(Session):
     """Session information from any string or PathLike containing a session ID.
 
     Note: lims/mtrain properties may be empty or None if mouse/session isn't in db.
-    Note: `is_ecephys` checks ecephys vs behavior: habs are ecephys sessions, as in lims. 
-    
+    Note: `is_ecephys` checks ecephys vs behavior: habs are ecephys sessions, as in lims.
+
     Quick access to useful properties:
     >>> session = DRPilotSession('c:/DRPilot_366122_20220824_surface-image1-left.png')
     >>> session.id
@@ -73,57 +58,61 @@ class DRPilotSession(Session):
     >>> str(session.rig)        # see np_config.Rig
     'NP.3'
     """
-    is_ecephys = True # not dealing with habs
-    is_ecephys_session = is_ecephys # not dealing with habs
-    project = "DRPilot"
-    
+
+    is_ecephys = True   # not dealing with habs
+    is_ecephys_session = is_ecephys   # not dealing with habs
+    project = 'DRPilot'
+
     storage_dirs: ClassVar[tuple[pathlib.Path, ...]] = tuple(
-        pathlib.Path(_) for _ in
-            (
-                '//10.128.50.140/Data2',
-                '//allen/programs/mindscope/workgroups/dynamicrouting/PilotEphys/Task 2 pilot',
-                '//allen/programs/mindscope/workgroups/np-exp/PilotEphys/Task 2 pilot',
-            ))
+        pathlib.Path(_)
+        for _ in (
+            '//10.128.50.140/Data2',
+            '//allen/programs/mindscope/workgroups/dynamicrouting/PilotEphys/Task 2 pilot',
+            '//allen/programs/mindscope/workgroups/np-exp/PilotEphys/Task 2 pilot',
+        )
+    )
     """Various directories where DRpilot sessions are stored - use `npexp_path`
     to get the session folder that exists."""
-    
+
     def __init__(self, path_or_session: PathLike) -> None:
         super().__init__(path_or_session)
-        
+
         if pathlib.Path(path_or_session).exists():
             self.npexp_path = pathlib.Path(path_or_session)
-            
+
     @property
     def rig(self) -> np_config.Rig:
         """Rig information from the session folder name."""
         if self.date < datetime.date(2023, 5, 1):
             return np_config.Rig(3)
         return np_config.Rig(2)
-    
+
     @property
     def id(self) -> str:
         """Same as `folder`."""
         return self.folder
 
-    @property    
+    @property
     def folder(self) -> str:
         """Folder name, e.g. `DRpilot_[labtracks ID]_[8-digit date]`."""
         return self._folder
-    
+
     @folder.setter
     def folder(self, value: str | PathLike) -> None:
         folder = self.get_folder(value)
         if folder is None:
-            raise ValueError(f"Session folder must be in the format `DRpilot_[6-digit mouse ID]_[8-digit date str]`: {value}")
+            raise ValueError(
+                f'Session folder must be in the format `DRpilot_[6-digit mouse ID]_[8-digit date str]`: {value}'
+            )
         self._folder = folder
-        
+
     @staticmethod
     def get_folder(path: str | pathlib.Path) -> str | None:
         """Extract [DRpilot_[6-digit mouse ID]_[8-digit date str] from a string or
         path.
         """
         # from filesystem
-        session_reg_exp = R"DRpilot_[0-9]{6}_[0-9]{8}"
+        session_reg_exp = R'DRpilot_[0-9]{6}_[0-9]{8}'
         session_folders = re.findall(session_reg_exp, str(path), re.IGNORECASE)
         if session_folders:
             return session_folders[0]
@@ -146,10 +135,16 @@ class DRPilotSession(Session):
 
     @property
     def lims(self) -> dict:
-        warnings.warn("LIMS info not available: LIMS sessions weren't created for for DRPilot experiments.")
-        return {}    
-    
-if __name__ == "__main__":
+        warnings.warn(
+            "LIMS info not available: LIMS sessions weren't created for for DRPilot experiments."
+        )
+        return {}
+
+
+if __name__ == '__main__':
     doctest.testmod(verbose=True)
-    optionflags=(doctest.ELLIPSIS, doctest.NORMALIZE_WHITESPACE,
-    doctest.IGNORE_EXCEPTION_DETAIL)
+    optionflags = (
+        doctest.ELLIPSIS,
+        doctest.NORMALIZE_WHITESPACE,
+        doctest.IGNORE_EXCEPTION_DETAIL,
+    )

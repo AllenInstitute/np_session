@@ -1,34 +1,23 @@
 from __future__ import annotations
 
 import contextlib
-import copy
 import datetime
 import doctest
-import functools
-import itertools
 import os
 import pathlib
-import shutil
-import warnings
-from typing import (Any, Callable, Generator, Iterable, MutableMapping,
-                    Optional, Type, TypeVar, Union)
+from typing import Any, Iterable, Optional, Type, TypeVar, Union
 
 import np_config
 import np_logging
-from backports.cached_property import cached_property
-from typing_extensions import Literal, runtime_checkable, Protocol, Self
+from typing_extensions import Literal, Self
 
-from np_session.components.info import Mouse, Project, Projects, User
-from np_session.components.lims_manifests import Manifest
+from np_session.components.info import Mouse, Project, User
 from np_session.components.mixins import WithState
 from np_session.components.paths import *
 from np_session.components.platform_json import *
-from np_session.databases import State
-from np_session.databases import data_getters as dg
-from np_session.databases import lims2 as lims
-from np_session.databases import mtrain
 from np_session.utils import *
-from np_session.exceptions import SessionError, FilepathIsDirError
+from np_session.exceptions import SessionError
+
 logger = np_logging.getLogger(__name__)
 
 PathLike = Union[str, bytes, os.PathLike, pathlib.Path]
@@ -37,15 +26,15 @@ PathLike = Union[str, bytes, os.PathLike, pathlib.Path]
 # os.fsdecode(path: PathLike) is used where only a string is required.
 
 
-SessionT = TypeVar("SessionT", bound="Session")
+SessionT = TypeVar('SessionT', bound='Session')
 
 
 class Session(WithState):
     """Session information from any string or PathLike containing a session ID.
 
     Note: lims/mtrain properties may be empty or None if mouse/session isn't in db.
-    Note: `is_ecephys` checks ecephys vs behavior: habs are ecephys sessions, as in lims. 
-    
+    Note: `is_ecephys` checks ecephys vs behavior: habs are ecephys sessions, as in lims.
+
     Quick access to useful properties:
     >>> session = Session('c:/1116941914_surface-image1-left.png')
     >>> session.lims.id
@@ -89,76 +78,81 @@ class Session(WithState):
     >>> str(session.rig)        # see np_config.Rig
     'NP.0'
     """
-        
+
     def __init__(self, path_or_session: PathLike | int | LIMS2SessionInfo):
         try:
             self.folder = self.get_folder(path_or_session)
         except ValueError as exc:
             raise SessionError(
-                f"{path_or_session} does not contain a valid {self.__class__.__name__} session id or session folder string"
+                f'{path_or_session} does not contain a valid {self.__class__.__name__} session id or session folder string'
             ) from exc
 
         if isinstance(path_or_session, LIMS2SessionInfo):
             self.lims = path_or_session
-            
-            
+
     def __new__(cls, *args, **kwargs) -> Self:
         """Initialize a Session object from any string or PathLike containing a
         lims session ID.
-        
+
         Class will be cast as a Session subclass type as appropriate.
         """
         if cls is __class__:
             subclass = __class__.subclass_from_factory(*args, **kwargs)
             new = object.__new__(subclass)
-            if __name__ == "__main__":
+            if __name__ == '__main__':
                 new.__init__(*args, **kwargs)
             return new
         return object.__new__(cls)
 
-
     @staticmethod
     def subclass_from_factory(*args, **kwargs) -> Type[Session]:
         import np_session.subclasses as subclasses
-        if __name__ == "__main__":
+
+        if __name__ == '__main__':
             from np_session.session import Session as cls
         else:
             cls = __class__
         for subclass in (
-            *__class__.__subclasses__(), 
+            *__class__.__subclasses__(),
             *cls.__subclasses__(),
-            *(_ 
-              for _ in subclasses.__dict__.values() 
-              if isinstance(_, type) and issubclass(_, (__class__, cls))
-              ),
-            ):
+            *(
+                _
+                for _ in subclasses.__dict__.values()
+                if isinstance(_, type) and issubclass(_, (__class__, cls))
+            ),
+        ):
             for value in (*args, kwargs.values()):
                 if subclass.get_folder(str(value)) is not None:
-                    logger.debug(f"Using {subclass.__name__} for {value}")
+                    logger.debug(f'Using {subclass.__name__} for {value}')
                     return subclass
-        raise SessionError(f"Could not find an appropriate Session subclass for {args} {kwargs}")
-    
+        raise SessionError(
+            f'Could not find an appropriate Session subclass for {args} {kwargs}'
+        )
+
     def __lt__(self, other: Session) -> bool:
-        if not hasattr(other, "date"):
+        if not hasattr(other, 'date'):
             return NotImplemented
         return self.date < other.date
-    
+
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, (int, str, Session)):
             return NotImplemented
         if isinstance(other, Session):
             return self.id == other.id
-        return str(self) == str(other) or str(self.id) == str(other) or self.folder == other
-    
+        return (
+            str(self) == str(other)
+            or str(self.id) == str(other)
+            or self.folder == other
+        )
+
     def __hash__(self) -> int:
         return hash(self.id) ^ hash(self.__class__.__name__)
-    
+
     def __str__(self) -> str:
         return self.folder
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}({self.folder!r})"
-    
+        return f'{self.__class__.__name__}({self.folder!r})'
 
     id: int | str
     """Unique identifier for the session, e.g. lims ecephys session ID"""
@@ -173,35 +167,37 @@ class Session(WithState):
     lims: Optional[dict | LIMS2SessionInfo] = None
     mtrain: Optional[mtrain.MTrain] = None
     foraging_id: Optional[str] = None
-    
+
     @staticmethod
     @abc.abstractmethod
     def get_folder(path: str | int | PathLike) -> str:
         """Extract the session folder from a path or session ID"""
-    
+
     @property
     def date(self) -> datetime.date:
-        d = self.folder.split("_")[2]
-        date = datetime.date(year=int(d[:4]), month=int(d[4:6]), day=int(d[6:]))
+        d = self.folder.split('_')[2]
+        date = datetime.date(
+            year=int(d[:4]), month=int(d[4:6]), day=int(d[6:])
+        )
         return date
 
     @property
     def npexp_path(self) -> pathlib.Path:
         """np-exp root / folder (may not exist)"""
         return NPEXP_ROOT / self.folder
-    
+
     @property
     def mouse(self) -> str | Mouse:
-        if not hasattr(self, "_mouse"):
-            self._mouse = Mouse(self.folder.split("_")[1])
+        if not hasattr(self, '_mouse'):
+            self._mouse = Mouse(self.folder.split('_')[1])
         return self._mouse
 
     is_ecephys: Optional[bool] = None
     """Whether the session is an ecephys session (None if not sure)"""
-    
+
     is_hab: Optional[bool] = None
     """Whether the session is a hab session (None if not sure)"""
-    
+
     @property
     def start(self) -> datetime.datetime:
         """Session start time - defaults to start of day on the session date"""
@@ -210,28 +206,41 @@ class Session(WithState):
     @property
     def end(self) -> datetime.datetime:
         """Session end time - defaults to end of day on the session date"""
-        return datetime.datetime(*self.date.timetuple()[:5]) + datetime.timedelta(days=1) - datetime.timedelta(seconds=1)
-    
+        return (
+            datetime.datetime(*self.date.timetuple()[:5])
+            + datetime.timedelta(days=1)
+            - datetime.timedelta(seconds=1)
+        )
+
     @property
-    def probes_inserted(self) -> Optional[tuple[Literal['A', 'B', 'C', 'D', 'E', 'F'], ...]]:
+    def probes_inserted(
+        self,
+    ) -> Optional[tuple[Literal['A', 'B', 'C', 'D', 'E', 'F'], ...]]:
         """None if no information has been set"""
         with contextlib.suppress(AttributeError):
             return self._probes
         return None
-        
+
     @probes_inserted.setter
-    def probes_inserted(self, inserted: str | Iterable[Literal['A', 'B', 'C', 'D', 'E', 'F']]):
+    def probes_inserted(
+        self, inserted: str | Iterable[Literal['A', 'B', 'C', 'D', 'E', 'F']]
+    ):
         probes = 'ABCDEF'
-        inserted = "".join(_.upper() for _ in inserted)
+        inserted = ''.join(_.upper() for _ in inserted)
         if not all(_ in probes for _ in inserted):
-            raise ValueError(f"Probes must be a sequence of letters A-F, got {inserted}")
+            raise ValueError(
+                f'Probes must be a sequence of letters A-F, got {inserted}'
+            )
         self._probes = tuple(p for p in inserted)
-        
-        
-if __name__ == "__main__":
-    if is_connected("lims2"):
+
+
+if __name__ == '__main__':
+    if is_connected('lims2'):
         doctest.testmod(verbose=True)
-        optionflags=(doctest.ELLIPSIS, doctest.NORMALIZE_WHITESPACE,
-        doctest.IGNORE_EXCEPTION_DETAIL)
+        optionflags = (
+            doctest.ELLIPSIS,
+            doctest.NORMALIZE_WHITESPACE,
+            doctest.IGNORE_EXCEPTION_DETAIL,
+        )
     else:
-        print("LIMS not connected - skipping doctests")
+        print('LIMS not connected - skipping doctests')

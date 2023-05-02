@@ -7,13 +7,13 @@ from typing import ClassVar, Iterator, Union
 
 import firebase_admin
 import firebase_admin.firestore as firestore
-import np_logging
 
 AcceptedType = Union[str, int, float, bool, list, None]
 
+
 class State(MutableMapping):
     """Get and set session state in Firebase via a dict interface.
-    
+
     - dict interface provides `keys`, `get`, `setdefault`, `pop`, etc.
     - accepted value types are str, int, float, bool, None
 
@@ -35,9 +35,9 @@ class State(MutableMapping):
     >>> state.get('new') is None
     True
     """
-    
+
     db: ClassVar
-    
+
     def __init__(self, id: int | str) -> None:
         self.id = str(id)
         try:
@@ -47,14 +47,16 @@ class State(MutableMapping):
 
     def __repr__(self) -> str:
         return repr(self.session_doc.get().to_dict())
-    
+
     @classmethod
     def connect(cls) -> None:
-        key_path = pathlib.Path('//allen/scratch/aibstemp/arjun.sridhar/db_key.json')
+        key_path = pathlib.Path(
+            '//allen/scratch/aibstemp/arjun.sridhar/db_key.json'
+        )
         cred = firebase_admin.credentials.Certificate(key_path)
         cls.app = firebase_admin.initialize_app(cred)
-        cls.db = firestore.client().collection(u'session_state')
-        #cls.ref = cls.db.reference('/session_state') # root user, can create users and add them also if needed
+        cls.db = firestore.client().collection('session_state')
+        # cls.ref = cls.db.reference('/session_state') # root user, can create users and add them also if needed
 
     @property
     def session_doc(self):
@@ -86,7 +88,7 @@ class State(MutableMapping):
 
     def __iter__(self) -> Iterator[str]:
         return iter(self.session_doc.get().to_dict())
-    
+
+
 if __name__ == '__main__':
     doctest.testmod(verbose=True)
-

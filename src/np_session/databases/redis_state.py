@@ -1,7 +1,5 @@
 """
 Redis connection for persisting np_session state.
-
-
 """
 from __future__ import annotations
 
@@ -17,7 +15,7 @@ import redis
 logger = np_logging.getLogger(__name__)
 
 password_file = pathlib.Path(
-        "//allen/scratch/aibstemp/arjun.sridhar/redis_db.txt"
+    '//allen/scratch/aibstemp/arjun.sridhar/redis_db.txt'
 )
 
 # AcceptedType will be coerced to RedisType before being stored in Redis:
@@ -32,7 +30,7 @@ class State(collections.abc.MutableMapping):
 
     - dict interface provides `keys`, `get`, `setdefault`, `pop`, etc.
     - accepted value types are str, int, float, bool, None
-    
+
     >>> test_id = 0
     >>> state = State(test_id)
     >>> state['test'] = 1.0
@@ -63,30 +61,33 @@ class State(collections.abc.MutableMapping):
 
     def __repr__(self) -> str:
         return self.data.__repr__()
-    
+
     @classmethod
     def connect(cls) -> None:
         password = password_file.read_text().strip()
         cls.db = redis.Redis(
-            host="redis-11877.c1.us-west-2-2.ec2.cloud.redislabs.com",
+            host='redis-11877.c1.us-west-2-2.ec2.cloud.redislabs.com',
             port=11877,
             password=password,
         )
         if cls.db.ping():
-            logger.debug("Connected to Redis database: %s", cls.db)
+            logger.debug('Connected to Redis database: %s', cls.db)
         else:
-            logger.error("Failed to connect to Redis database")
-            
+            logger.error('Failed to connect to Redis database')
+
     @property
     def data(self) -> dict[str, AcceptedType]:
-        return {k.decode(): decode(v) for k, v in self.db.hgetall(self.name).items()}
+        return {
+            k.decode(): decode(v)
+            for k, v in self.db.hgetall(self.name).items()
+        }
 
     def __getitem__(self, key: str) -> AcceptedType:
         _ = decode(self.db.hget(self.name, key))
         if _ is None:
-            raise KeyError(f"{key!r} not found in Redis db entry {self!r}")
+            raise KeyError(f'{key!r} not found in Redis db entry {self!r}')
         return _
-    
+
     def __setitem__(self, key: str, value: AcceptedType) -> None:
         self.db.hset(self.name, key, encode(value))
 
@@ -99,11 +100,13 @@ class State(collections.abc.MutableMapping):
     def __len__(self) -> int:
         return len(self.data)
 
+
 def encode(value: AcceptedType) -> RedisType:
     """Redis can't store bools: convert to something compatible before entering."""
     if value in (True, False, None):
         return str(value)
     return value
+
 
 def decode(value: bytes | None) -> AcceptedType:
     """Redis stores everything as bytes: convert back to our original python datatype."""
@@ -119,5 +122,5 @@ def decode(value: bytes | None) -> AcceptedType:
     return decoded_value
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     doctest.testmod(verbose=True)

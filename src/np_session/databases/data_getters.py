@@ -16,6 +16,7 @@ from typing import ClassVar
 import psycopg2
 import psycopg2.extras
 
+
 class NoBehaviorSessionError(Exception):
     pass
 
@@ -27,7 +28,7 @@ class MultipleBehaviorSessionsError(Exception):
 def get_foraging_id_from_behavior_session(
     mouse_id: int | str, start: datetime.datetime, end: datetime.datetime
 ) -> str:
-    fmt = "%Y-%m-%d %H:%M"
+    fmt = '%Y-%m-%d %H:%M'
     query = f"""
             SELECT foraging_id
             FROM behavior_sessions bs
@@ -40,17 +41,17 @@ def get_foraging_id_from_behavior_session(
     info_list = []
     if cur.rowcount == 0:
         raise NoBehaviorSessionError(
-            f"No behavior session found for MID {mouse_id} between {start} and {end}"
+            f'No behavior session found for MID {mouse_id} between {start} and {end}'
         )
     elif cur.rowcount != 0:
         info_list = cur.fetchall()
         if len(info_list) > 1:
             raise MultipleBehaviorSessionsError(
-                f"Multiple behavior sessions found for MID {mouse_id} between {start} and {end}"
+                f'Multiple behavior sessions found for MID {mouse_id} between {start} and {end}'
             )
         elif info_list == []:
             raise NoBehaviorSessionError(
-                f"No behavior session found for MID {mouse_id} between {start} and {end}"
+                f'No behavior session found for MID {mouse_id} between {start} and {end}'
             )
         elif len(info_list) == 1 and isinstance(info_list[0], tuple):
             foraging_id = info_list[0][0]
@@ -60,7 +61,7 @@ def get_foraging_id_from_behavior_session(
             return foraging_id
         else:
             raise Exception(
-                f"Unexpected behavior session info for MID {mouse_id} between {start} and {end}: {info_list}"
+                f'Unexpected behavior session info for MID {mouse_id} between {start} and {end}: {info_list}'
             )
 
 
@@ -99,7 +100,7 @@ def get_sess_probes(session_id):
     cur.execute(lims_query)
     info_list = []
     if cur.rowcount == 0:
-        raise Exception("No data was found for ID {}".format(session_id))
+        raise Exception('No data was found for ID {}'.format(session_id))
     elif cur.rowcount != 0:
         info_list = cur.fetchall()
         probes_list = []
@@ -111,7 +112,9 @@ def get_sess_probes(session_id):
             probe_query = PROBE_ID_QRY.format(probe_id)
             cur.execute(probe_query)
             if cur.rowcount == 0:
-                raise Exception("No data was found for ID {}".format(session_id))
+                raise Exception(
+                    'No data was found for ID {}'.format(session_id)
+                )
             else:
                 probe_name_status = cur.fetchall()
                 probe_status = probe_name_status[0][1]
@@ -119,12 +122,12 @@ def get_sess_probes(session_id):
                 probe_storage = probe_name_status[0][2]
                 print(probe_storage)
                 if (
-                    probe_status == "passed" or probe_status == "created"
+                    probe_status == 'passed' or probe_status == 'created'
                 ) and probe_storage is not None:
-                    if (probe_status) == "passed":
+                    if (probe_status) == 'passed':
                         print(probe_name)
                     else:
-                        print(probe_name + " is created, but not passed")
+                        print(probe_name + ' is created, but not passed')
                     probes_list.append(probe_name)
         return probes_list
 
@@ -140,7 +143,7 @@ def get_cred_location():
     path to json file storing credential information
     """
     dir = os.path.dirname(__file__)
-    cred_json = os.path.join(dir, ".cred", "post_gres.json")
+    cred_json = os.path.join(dir, '.cred', 'post_gres.json')
     return cred_json
 
 
@@ -166,17 +169,19 @@ def get_psql_cursor(as_dict=True):
     A connection to the postgres database
     """
 
-    dbname = "lims2"
-    user = "limsreader"
-    host = "limsdb2"
-    password = "limsro"
+    dbname = 'lims2'
+    user = 'limsreader'
+    host = 'limsdb2'
+    password = 'limsro'
     port = 5432
     con = psycopg2.connect(
         dbname=dbname, user=user, host=host, password=password, port=port
     )
     con.set_session(readonly=True, autocommit=True)
     if as_dict:
-        return con.cursor(cursor_factory=psycopg2.extras.RealDictCursor,)
+        return con.cursor(
+            cursor_factory=psycopg2.extras.RealDictCursor,
+        )
     return con.cursor()
 
 
@@ -187,6 +192,7 @@ class data_getter:
     2) grab experiment data
     3) grab probe data
     """
+
     def __init__(self, exp_id=None, base_dir=None, cortical_sort=False):
         self.data_dict = {}
         self.cortical_sort = cortical_sort
@@ -210,24 +216,25 @@ class data_getter:
 
 
 class lims_data_getter(data_getter):
-    
+
     con: ClassVar[psycopg2.connection]
     cursor: ClassVar[psycopg2.cursor]
+
     def connect(self, exp_id, base_dir):
         # set up connection to lims
-        if not hasattr(self.__class__, "con"):
+        if not hasattr(self.__class__, 'con'):
             self.__class__.con = psycopg2.connect(
-                dbname="lims2",
-                user="limsreader",
-                host="limsdb2",
-                password="limsro",
+                dbname='lims2',
+                user='limsreader',
+                host='limsdb2',
+                password='limsro',
                 port=5432,
             )
             self.con.set_session(
                 readonly=True,
                 autocommit=True,
             )
-        if not hasattr(self.__class__, "cursor"):
+        if not hasattr(self.__class__, 'cursor'):
             self.__class__.cursor = self.con.cursor(
                 cursor_factory=psycopg2.extras.RealDictCursor,
             )
@@ -276,25 +283,27 @@ class lims_data_getter(data_getter):
             exp_data[0]
         )  # update data_dict to have all the experiment metadata
         [
-            self.data_dict.pop(key) for key in ["wkft", "wkf_path"]
+            self.data_dict.pop(key) for key in ['wkft', 'wkf_path']
         ]  # ...but remove the wkf stuff
 
         for e in exp_data:
-            wkft = e["wkft"]
-            wkf_path = e["wkf_path"]
+            wkft = e['wkft']
+            wkf_path = e['wkf_path']
             self.data_dict[wkft] = convert_lims_path(wkf_path)
 
         self.translate_wkf_names()
 
-        behavior_dir = convert_lims_path(self.data_dict["behavior_dir"])
-        self.data_dict["behavior_pkl"] = glob_file(os.path.join(behavior_dir, "*.pkl"))
-        if self.data_dict["date_of_acquisition"] is not None:
-            self.data_dict["datestring"] = self.data_dict[
-                "date_of_acquisition"
-            ].strftime("%Y%m%d")
+        behavior_dir = convert_lims_path(self.data_dict['behavior_dir'])
+        self.data_dict['behavior_pkl'] = glob_file(
+            os.path.join(behavior_dir, '*.pkl')
+        )
+        if self.data_dict['date_of_acquisition'] is not None:
+            self.data_dict['datestring'] = self.data_dict[
+                'date_of_acquisition'
+            ].strftime('%Y%m%d')
         else:
-            self.data_dict["datestring"] = ""
-        self.data_dict["es_id"] = str(self.data_dict["es_id"])
+            self.data_dict['datestring'] = ''
+        self.data_dict['es_id'] = str(self.data_dict['es_id'])
 
     def get_image_data(self):
         """Get all the images associated with this experiment"""
@@ -316,8 +325,8 @@ class lims_data_getter(data_getter):
         # get D1 directory (assume this is where the sync file is)
 
         for im in image_data:
-            name = im["image_type"]
-            path = convert_lims_path(im["image_path"])
+            name = im['image_type']
+            path = convert_lims_path(im['image_path'])
             # self.data_dict[name] = convert_lims_path(path)
             self.data_dict[name] = path
 
@@ -346,43 +355,49 @@ class lims_data_getter(data_getter):
         self.cursor.execute(WKF_PROBE_QRY.format(self.lims_id))
         probe_data = self.cursor.fetchall()
 
-        p_info = [p for p in probe_data if p["wkft"] == "EcephysSortedAmplitudes"]
+        p_info = [
+            p for p in probe_data if p['wkft'] == 'EcephysSortedAmplitudes'
+        ]
 
-        getnesteddir = lambda x: os.path.dirname(os.path.dirname(os.path.dirname(x)))
-        probe_bases = [convert_lims_path(getnesteddir(pi["wkf_path"])) for pi in p_info]
+        def getnesteddir(x):
+            return os.path.dirname(os.path.dirname(os.path.dirname(x)))
+
+        probe_bases = [
+            convert_lims_path(getnesteddir(pi['wkf_path'])) for pi in p_info
+        ]
         # probe_bases = [convert_lims_path(os.path.dirname(pi['wkf_path'])) for pi in p_info]
 
-        self.data_dict["data_probes"] = []
+        self.data_dict['data_probes'] = []
         for pb in probe_bases:
             probeID = pb[-1]
-            self.data_dict["data_probes"].append(probeID)
-            self.data_dict["probe" + probeID] = pb
-            self.data_dict["lfp" + probeID] = pb
-            info_json = glob_file(os.path.join(pb, "*probe_info*json"))
-            self.data_dict["probe" + probeID + "_info"] = info_json
+            self.data_dict['data_probes'].append(probeID)
+            self.data_dict['probe' + probeID] = pb
+            self.data_dict['lfp' + probeID] = pb
+            info_json = glob_file(os.path.join(pb, '*probe_info*json'))
+            self.data_dict['probe' + probeID + '_info'] = info_json
 
-        raw = [p for p in probe_data if p["wkft"] == "EcephysProbeRawData"]
+        raw = [p for p in probe_data if p['wkft'] == 'EcephysProbeRawData']
         name_suffix = {
-            "probeA": "ABC",
-            "probeB": "ABC",
-            "probeC": "ABC",
-            "probeD": "DEF",
-            "probeE": "DEF",
-            "probeF": "DEF",
+            'probeA': 'ABC',
+            'probeB': 'ABC',
+            'probeC': 'ABC',
+            'probeD': 'DEF',
+            'probeE': 'DEF',
+            'probeF': 'DEF',
         }
         for r in raw:
-            probeID = r["ep"]
-            name = r["wkft"] + name_suffix[probeID]
-            path = convert_lims_path(r["wkf_path"])
+            probeID = r['ep']
+            name = r['wkft'] + name_suffix[probeID]
+            path = convert_lims_path(r['wkf_path'])
 
             if (
-                not name + "_settings" in self.data_dict
-                or self.data_dict[name + "_settings"] is None
+                name + '_settings' not in self.data_dict
+                or self.data_dict[name + '_settings'] is None
             ):
-                self.data_dict[name + "_settings"] = path
+                self.data_dict[name + '_settings'] = path
 
-            npx2_path = glob_file(os.path.join(os.path.dirname(path), "*npx2"))
-            if not name in self.data_dict or self.data_dict[name] is None:
+            npx2_path = glob_file(os.path.join(os.path.dirname(path), '*npx2'))
+            if name not in self.data_dict or self.data_dict[name] is None:
                 self.data_dict[name] = npx2_path
 
         self.probe_data = probe_data
@@ -390,7 +405,7 @@ class lims_data_getter(data_getter):
     def storage_directory(self) -> str | None:
         """Get the storage directory for this experiment"""
         if self.data_dict:
-            return "/" + self.data_dict["storage_directory"]
+            return '/' + self.data_dict['storage_directory']
         WKF_QRY = """
             SELECT es.storage_directory
             FROM ecephys_sessions es
@@ -398,16 +413,16 @@ class lims_data_getter(data_getter):
             """
         self.cursor.execute(WKF_QRY.format(self.lims_id))
         exp_data = self.cursor.fetchall()
-        if exp_data and exp_data[0]["storage_directory"]:
-            return "/" + exp_data[0]["storage_directory"]
+        if exp_data and exp_data[0]['storage_directory']:
+            return '/' + exp_data[0]['storage_directory']
         return None
 
     def translate_wkf_names(self):
         wkf_dict = {
-            "MappingPickle": "mapping_pkl",
-            "EcephysReplayStimulus": "replay_pkl",
-            "EcephysRigSync": "sync_file",
-            "OptoPickle": "opto_pkl",
+            'MappingPickle': 'mapping_pkl',
+            'EcephysReplayStimulus': 'replay_pkl',
+            'EcephysRigSync': 'sync_file',
+            'OptoPickle': 'opto_pkl',
         }
 
         for wkf in wkf_dict:
@@ -420,23 +435,23 @@ class local_data_getter(data_getter):
         if os.path.exists(base_dir):
             self.base_dir = base_dir
         else:
-            print("Invalid base directory: " + base_dir)
+            print('Invalid base directory: ' + base_dir)
 
     def get_exp_data(self):
         file_glob_dict = {
-            "mapping_pkl": ["*mapping*.pkl", "*stim.pkl"],
-            "replay_pkl": "*replay*.pkl",
-            "behavior_pkl": "*behavior*.pkl",
-            "opto_pkl": "*opto*.pkl",
-            "sync_file": "*.sync",
-            "RawEyeTrackingVideo": ["*.eye.avi", "*eye.mp4"],
-            "RawBehaviorTrackingVideo": ["*behavior.avi", "*behavior.mp4"],
-            "RawFaceTrackingVideo": ["*face.avi", "*face.mp4"],
-            "RawEyeTrackingVideoMetadata": "*eye.json",
-            "RawBehaviorTrackingVideoMetadata": "*behavior.json",
-            "RawFaceTrackingVideoMetadata": "*face.json",
-            "EcephysPlatformFile": "*platformD1.json",
-            "NewstepConfiguration": "*motor-locs.csv",
+            'mapping_pkl': ['*mapping*.pkl', '*stim.pkl'],
+            'replay_pkl': '*replay*.pkl',
+            'behavior_pkl': '*behavior*.pkl',
+            'opto_pkl': '*opto*.pkl',
+            'sync_file': '*.sync',
+            'RawEyeTrackingVideo': ['*.eye.avi', '*eye.mp4'],
+            'RawBehaviorTrackingVideo': ['*behavior.avi', '*behavior.mp4'],
+            'RawFaceTrackingVideo': ['*face.avi', '*face.mp4'],
+            'RawEyeTrackingVideoMetadata': '*eye.json',
+            'RawBehaviorTrackingVideoMetadata': '*behavior.json',
+            'RawFaceTrackingVideoMetadata': '*face.json',
+            'EcephysPlatformFile': '*platformD1.json',
+            'NewstepConfiguration': '*motor-locs.csv',
         }
 
         for fn in file_glob_dict:
@@ -445,104 +460,119 @@ class local_data_getter(data_getter):
                     glob_file(os.path.join(self.base_dir, f))
                     for f in file_glob_dict[fn]
                 ]
-                path = [p for p in paths if not p is None]
+                path = [p for p in paths if p is not None]
                 if len(path) > 0:
                     self.data_dict[fn] = path[0]
             else:
-                filepath = glob_file(os.path.join(self.base_dir, file_glob_dict[fn]))
+                filepath = glob_file(
+                    os.path.join(self.base_dir, file_glob_dict[fn])
+                )
                 if filepath is not None:
                     self.data_dict[fn] = filepath
 
         basename = os.path.basename(self.base_dir)
-        self.data_dict["es_id"] = basename.split("_")[0]
-        self.data_dict["external_specimen_name"] = basename.split("_")[1]
-        self.data_dict["datestring"] = basename.split("_")[2]
-        self.data_dict["rig"] = self.get_rig_from_platform()
+        self.data_dict['es_id'] = basename.split('_')[0]
+        self.data_dict['external_specimen_name'] = basename.split('_')[1]
+        self.data_dict['datestring'] = basename.split('_')[2]
+        self.data_dict['rig'] = self.get_rig_from_platform()
 
     def get_platform_info(self):
-        platform_file = self.data_dict["EcephysPlatformFile"]
-        with open(platform_file, "r") as file:
+        platform_file = self.data_dict['EcephysPlatformFile']
+        with open(platform_file, 'r') as file:
             self.platform_info = json.load(file)
 
     def get_rig_from_platform(self):
-        if not hasattr(self, "platform_info"):
+        if not hasattr(self, 'platform_info'):
             self.get_platform_info()
 
-        return self.platform_info["rig_id"]
+        return self.platform_info['rig_id']
 
     def get_probe_data(self):
-        self.data_dict["data_probes"] = []
+        self.data_dict['data_probes'] = []
 
         # get probe dirs
-        for probeID in "ABCDEF":
+        for probeID in 'ABCDEF':
             if self.cortical_sort:
                 probe_base = glob_file(
-                    os.path.join(self.base_dir, "cortical*probe" + probeID + "_sorted")
+                    os.path.join(
+                        self.base_dir, 'cortical*probe' + probeID + '_sorted'
+                    )
                 )
                 lfp_base = glob_file(
-                    os.path.join(self.base_dir, "*probe" + probeID + "_sorted")
+                    os.path.join(self.base_dir, '*probe' + probeID + '_sorted')
                 )
             else:
                 probe_base = glob_file(
-                    os.path.join(self.base_dir, "*probe" + probeID + "_sorted")
+                    os.path.join(self.base_dir, '*probe' + probeID + '_sorted')
                 )
                 lfp_base = probe_base
 
             if probe_base is not None:
-                self.data_dict["data_probes"].append(probeID)
-                self.data_dict["probe" + probeID] = probe_base
+                self.data_dict['data_probes'].append(probeID)
+                self.data_dict['probe' + probeID] = probe_base
 
                 metrics_file = glob_file(
                     os.path.join(
-                        probe_base, r"continuous\Neuropix-PXI-100.0\metrics.csv"
+                        probe_base,
+                        r'continuous\Neuropix-PXI-100.0\metrics.csv',
                     )
                 )
-                self.data_dict["probe" + probeID + "_metrics"] = metrics_file
+                self.data_dict['probe' + probeID + '_metrics'] = metrics_file
 
-                info_json = glob_file(os.path.join(probe_base, "*probe_info*json"))
-                self.data_dict["probe" + probeID + "_info"] = info_json
+                info_json = glob_file(
+                    os.path.join(probe_base, '*probe_info*json')
+                )
+                self.data_dict['probe' + probeID + '_info'] = info_json
 
                 channel_map = glob_file(
                     os.path.join(
-                        probe_base, r"continuous\Neuropix-PXI-100.0\channel_map.npy"
+                        probe_base,
+                        r'continuous\Neuropix-PXI-100.0\channel_map.npy',
                     )
                 )
-                self.data_dict["probe" + probeID + "_channel_map"] = channel_map
+                self.data_dict[
+                    'probe' + probeID + '_channel_map'
+                ] = channel_map
 
             if lfp_base is not None:
-                self.data_dict["lfp" + probeID] = lfp_base
+                self.data_dict['lfp' + probeID] = lfp_base
 
     def get_image_data(self):
         # GET PROBE DEPTH IMAGES
-        for probeID in self.data_dict["data_probes"]:
-            probe_base = self.data_dict["probe" + probeID]
-            probe_depth_image = glob_file(os.path.join(probe_base, "probe_depth*.png"))
+        for probeID in self.data_dict['data_probes']:
+            probe_base = self.data_dict['probe' + probeID]
+            probe_depth_image = glob_file(
+                os.path.join(probe_base, 'probe_depth*.png')
+            )
             if probe_depth_image is not None:
-                self.data_dict["probe_depth_" + probeID] = probe_depth_image
+                self.data_dict['probe_depth_' + probeID] = probe_depth_image
 
         # GET OTHER IMAGE FILES
         # image_files = [k for k in D1_local if 'image' in k]
         image_files = [
-            "EcephysPostExperimentLeft",
-            "EcephysPostExperimentRight",
-            "EcephysPostInsertionLeft",
-            "EcephysPostInsertionRight",
-            "EcephysPostStimulusLeft",
-            "EcephysPostStimulusRight",
-            "EcephysPreExperimentLeft",
-            "EcephysPreExperimentRight",
-            "EcephysPreInsertionLeft",
-            "EcephysPreInsertionRight",
-            "EcephysInsertionLocationImage",
-            "EcephysOverlayImage",
-            "EcephysBrainSurfaceLeft",
-            "EcephysBrainSurfaceRight",
+            'EcephysPostExperimentLeft',
+            'EcephysPostExperimentRight',
+            'EcephysPostInsertionLeft',
+            'EcephysPostInsertionRight',
+            'EcephysPostStimulusLeft',
+            'EcephysPostStimulusRight',
+            'EcephysPreExperimentLeft',
+            'EcephysPreExperimentRight',
+            'EcephysPreInsertionLeft',
+            'EcephysPreInsertionRight',
+            'EcephysInsertionLocationImage',
+            'EcephysOverlayImage',
+            'EcephysBrainSurfaceLeft',
+            'EcephysBrainSurfaceRight',
         ]
         from np_session.components.lims_manifests import Manifest, MANIFESTS
+
         manifest = Manifest(self.base_dir)
-        
+
         for im in image_files:
-            rel_path = manifest.globs[manifest.names.index(MANIFESTS['_lims_name'][im])]
+            rel_path = manifest.globs[
+                manifest.names.index(MANIFESTS['_lims_name'][im])
+            ]
             im_file = glob_file(os.path.join(self.base_dir, rel_path))
 
             self.data_dict[im] = im_file
@@ -558,9 +588,9 @@ def glob_file(file_path):
 
 def convert_lims_path(path):
     if path is not None:
-        new_path = r"\\" + os.path.normpath(path)[1:]
+        new_path = r'\\' + os.path.normpath(path)[1:]
     else:
-        new_path = ""
+        new_path = ''
 
     return new_path
 
@@ -581,14 +611,15 @@ def convert_path_str_to_pathlib(data_dict_orig) -> dict:
     """
     data_dict = data_dict_orig.copy()
     for k, v in data_dict.items():
-        if isinstance(v, str) and (v.startswith("/") or v.startswith("\\")):
-            v = v.replace("\\", "/")
-            if v[:2] != "//":
-                v = "/" + v
+        if isinstance(v, str) and (v.startswith('/') or v.startswith('\\')):
+            v = v.replace('\\', '/')
+            if v[:2] != '//':
+                v = '/' + v
             data_dict[k] = pathlib.Path(v)
     return data_dict
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     import doctest
+
     doctest.testmod()
