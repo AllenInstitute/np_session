@@ -44,42 +44,16 @@ dev = [
 ]
 
 [tool.pdm.scripts]
-ruff = "ruff --fix src"
+# usage: pdm run <script> [args]
+ruff = "ruff check src --fix-only"
 blue = "blue src"
 pytest = "pytest --cov"
-bump = "pdm bump patch"
-
-[tool.pdm.scripts.prebuild]
-composite = [
-    "blue",
-    "ruff",
-    "pytest",
-]
-
-[tool.pdm.scripts.build]
-composite = [
-    "prebuild",
-    "pdm build",
-]
-
-[tool.pdm.scripts.dry-run]
-composite = [
-    "prebuild",
-    "pdm build",
-    "pdm publish --no-build --repository https://test.pypi.org/simple",
-]
-
-[tool.pdm.scripts.pub]
-composite = [
-    "pdm bump patch",
-    "pdm publish",
-]
-
-[tool.pdm.scripts.publish]
-composite = [
-    "pdm build",
-    "pdm publish --no-build",
-]
+prebuild = {composite = ["blue", "ruff", "pytest"]}
+bump = "bump -p pyproject.toml" # defaults to patch; `pdm run bump -m` to bump minor
+build = {composite = ["prebuild", "pdm build"]}
+dry-run = {composite = ["prebuild", "pdm build", "pdm publish --no-build --repository https://test.pypi.org/simple"]}
+publish = {composite = ["prebuild", "pdm build", "pdm publish --no-build"]}
+pub = {composite = ["bump", "pdm publish"]}
 
 [tool.pytest.ini_options]
 addopts = [
