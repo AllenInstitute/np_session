@@ -10,9 +10,9 @@ from typing import Iterable, Optional
 import np_config
 import np_logging
 from backports.cached_property import cached_property
-from typing_extensions import Literal
+from typing_extensions import Literal, Self
 
-from np_session.components.info import Project, User
+from np_session.components.info import Project, User, Mouse
 from np_session.components.lims_manifests import Manifest
 from np_session.components.paths import *
 from np_session.components.platform_json import *
@@ -78,6 +78,37 @@ class PipelineSession(Session):
     @staticmethod
     def get_folder(value: int | str | PathLike) -> str | None:
         return get_lims_session_folder(value)
+
+    @classmethod
+    def new(
+        cls,
+        mouse: str | int | Mouse,
+        user: str | User,
+        session_type: Literal['ephys', 'hab', 'behavior'] = 'ephys',
+    ) -> Self:
+        """Create a new session in LIMS and return a Session instance."""
+        if not isinstance(mouse, Mouse):
+            mouse = Mouse(mouse)
+        if not isinstance(user, User):
+            user = User(user)
+        if (
+            'ephys' in session_type
+        ):   # maintain backwards compatibility with 'ecephys'
+            lims_session = lims.generate_ephys_session(
+                mouse=mouse.lims, user=user.lims
+            )
+        elif session_type == 'hab':
+            lims_session = lims.generate_hab_session(
+                mouse=mouse.lims, user=user.lims
+            )
+        elif session_type == 'behavior':
+            raise ValueError('Generating behavior sessions is not yet supported')
+        session = cls(lims_session)
+        # assign instances with data already fetched from lims:
+        session._mouse = mouse
+        session._user = user
+        return session
+
 
     @property
     def folder(self) -> str:

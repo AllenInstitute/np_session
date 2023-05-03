@@ -8,7 +8,9 @@ import warnings
 
 import np_config
 import np_logging
+from typing_extensions import Self
 
+from np_session.components.info import Project, User, Mouse
 from np_session.components.paths import *
 from np_session.components.platform_json import *
 from np_session.utils import *
@@ -117,6 +119,15 @@ class DRPilotSession(Session):
         if session_folders:
             return session_folders[0]
 
+    @classmethod
+    def new(
+        cls,
+        mouse_labtracks_id: int | str | Mouse,
+    ) -> Self:
+        """Create a new session folder for a mouse."""
+        path = cls.storage_dirs[0] / f'DRpilot_{mouse_labtracks_id}_{datetime.date.today().strftime("%Y%m%d")}'
+        return cls(path)
+    
     @property
     def npexp_path(self) -> pathlib.Path:
         with contextlib.suppress(AttributeError):
