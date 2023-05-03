@@ -81,7 +81,8 @@ class Session(WithState):
 
     def __init__(self, path_or_session: PathLike | int | LIMS2SessionInfo):
         try:
-            self.folder = self.get_folder(path_or_session)
+            # assign directly and folder setter will validate for us
+            self.folder = str(path_or_session)
         except ValueError as exc:
             raise SessionError(
                 f'{path_or_session} does not contain a valid {self.__class__.__name__} session id or session folder string'
