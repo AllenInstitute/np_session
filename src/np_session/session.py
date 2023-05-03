@@ -170,10 +170,15 @@ class Session(WithState):
     foraging_id: Optional[str] = None
 
     @staticmethod
-    @abc.abstractmethod
     def get_folder(path: str | int | PathLike) -> str:
         """Extract the session folder from a path or session ID"""
-
+        return NotImplemented
+    
+    @classmethod
+    def new(cls, *args, **kwargs) -> Self:
+        """Generate a new session (should create a folder and assign to npexp path)"""
+        return NotImplemented
+    
     @property
     def date(self) -> datetime.date:
         d = self.folder.split('_')[2]
