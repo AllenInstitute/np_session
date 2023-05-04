@@ -220,8 +220,6 @@ class PipelineSession(Session):
             return None
         return 'ecephys_session' in self.lims['ecephys_session']
 
-    is_ecephys_session = is_ecephys   # for backwards compatibility
-
     @property
     def is_hab(self) -> bool | None:
         """False if hab session, None if unsure."""

@@ -62,7 +62,6 @@ class DRPilotSession(Session):
     """
 
     is_ecephys = True   # not dealing with habs
-    is_ecephys_session = is_ecephys   # not dealing with habs
     project = 'DRPilot'
 
     storage_dirs: ClassVar[tuple[pathlib.Path, ...]] = tuple(
@@ -123,6 +122,8 @@ class DRPilotSession(Session):
     def new(
         cls,
         mouse_labtracks_id: int | str | Mouse,
+        *args,
+        **kwargs,
     ) -> Self:
         """Create a new session folder for a mouse."""
         path = cls.storage_dirs[0] / f'DRpilot_{mouse_labtracks_id}_{datetime.date.today().strftime("%Y%m%d")}'

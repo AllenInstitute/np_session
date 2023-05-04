@@ -205,6 +205,11 @@ class Session(WithState):
     """Whether the session is a hab session (None if not sure)"""
 
     @property
+    def is_ecephys_session(self) -> bool | None:
+        """Returns `is_ecephys`, for backwards compatibility"""
+        return self.is_ecephys
+    
+    @property
     def start(self) -> datetime.datetime:
         """Session start time - defaults to start of day on the session date"""
         return datetime.datetime(*self.date.timetuple()[:5])

@@ -64,7 +64,6 @@ class TempletonPilotSession(Session):
     """
 
     is_ecephys = True   # not dealing with habs
-    is_ecephys_session = is_ecephys   # not dealing with habs
     project = 'TempletonPilot'
     
     datetime_format: ClassVar[str] = '%Y-%m-%d_%H-%M-%S'
