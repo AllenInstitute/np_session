@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import datetime
 import doctest
 import pathlib
+from typing import NamedTuple
 import warnings
 
 import np_config
@@ -26,17 +28,21 @@ class TempletonPilotSession(Session):
     Note: `is_ecephys` checks ecephys vs behavior: habs are ecephys sessions, as in lims.
 
     Quick access to useful properties:
-    >>> session = TempletonPilotSession('c:/templeton/pilot/2023-01-18_10-44-55_646318_surface-image1-left.png')
+    >>> session = TempletonPilotSession("//allen/programs/mindscope/workgroups/templeton/TTOC/pilot recordings/2023-01-18_10-44-55_646318")
     >>> session.id
-    'TempletonPilot_2023-01-18_10-44-55_646318'
-    >>> session.folder
     '2023-01-18_10-44-55_646318'
+    >>> session.folder
+    'TempletonPilot_646318_20230118_104455'
     >>> session.is_ecephys
     True
     >>> session.rig.acq # hostnames reflect the computers used during the session, not necessarily the current machines
     'W10DT05516'
     >>> session.npexp_path.as_posix()
     '//allen/programs/mindscope/workgroups/templeton/TTOC/pilot recordings/2023-01-18_10-44-55_646318'
+    >>> session1 = TempletonPilotSession("2023-01-18_10-44-55_646318")
+    >>> session2 = TempletonPilotSession("TempletonPilot_646318_20230118_104455")
+    >>> session == session1 == session2
+    True
     
     Some properties are returned as objects with richer information:
 
@@ -66,7 +72,13 @@ class TempletonPilotSession(Session):
     is_ecephys = True   # not dealing with habs
     project = 'TempletonPilot'
     
-    datetime_format: ClassVar[str] = '%Y-%m-%d_%H-%M-%S'
+    ephys_date_format: ClassVar[str] = '%Y-%m-%d'
+    ephys_time_format: ClassVar[str] = '%H-%M-%S'
+    session_date_format: ClassVar[str] = '%Y%m%d'
+    session_time_format: ClassVar[str] = '%H%M%S'
+    
+    session_reg_exp = re.compile(project + R'_[0-9]{6}_[0-9]{8}_[0-9]{6}')
+    ephys_reg_exp = re.compile(R'[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}_[0-9]{6}')
     
     storage_dirs: ClassVar[tuple[pathlib.Path, ...]] = tuple(
         pathlib.Path(_)
@@ -80,17 +92,53 @@ class TempletonPilotSession(Session):
     def __init__(self, path_or_session: PathLike) -> None:
         super().__init__(path_or_session)
 
-        if pathlib.Path(path_or_session).exists():
-            self.npexp_path = pathlib.Path(path_or_session)
+        self.npexp_path = self.get_extant_path(path_or_session) or self.get_extant_path(self.folder)
+    
+    @classmethod
+    def get_extant_path(cls, path: str | PathLike) -> pathlib.Path | None:
+        if pathlib.Path(path).exists():
+            return pathlib.Path(path)
+        for d in cls.storage_dirs:
+            for s in (
+                pathlib.Path(path).name,
+                cls.info_to_ephys_folder(cls.info_from_path(path)),
+                cls.info_to_session_folder(cls.info_from_path(path)),
+            ):
+                if (d / s).exists():
+                    return d / s
+    
+    class InfoFromPath(NamedTuple):
+        mouse: str
+        date: datetime.date
+        time: datetime.time
 
+    @classmethod
+    def info_from_path(cls, path: str | PathLike) -> InfoFromPath | None:
+        """Parse a string or path to get mouse, date, time, etc."""
+        path = str(path)
+        if cls.session_reg_exp.search(path):
+            _, mouse, date, time = cls.session_reg_exp.search(path).group().split('_')
+            return cls.InfoFromPath(mouse, datetime.datetime.strptime(date, cls.session_date_format).date(), datetime.datetime.strptime(time, cls.session_time_format).time())
+        if cls.ephys_reg_exp.search(path):
+            date, time, mouse = cls.ephys_reg_exp.search(path).group().split('_')
+            return cls.InfoFromPath(mouse, datetime.datetime.strptime(date, cls.ephys_date_format).date(), datetime.datetime.strptime(time, cls.ephys_time_format).time())
+    
+    @property
+    def info(self) -> InfoFromPath:
+        return self.info_from_path(self.npexp_path)
+    
     @property
     def date(self) -> datetime.date:
-        return datetime.datetime.strptime(self.folder[:-7], self.datetime_format).date()
+        return self.info.date
+
+    @property
+    def time(self) -> datetime.time:
+        return self.info.time
 
     @property
     def mouse(self) -> Mouse:
         """Mouse information from the session folder name."""
-        return Mouse(int(self.folder[-6:]))
+        return Mouse(self.info.mouse)
 
     @property
     def rig(self) -> np_config.Rig:
@@ -101,30 +149,47 @@ class TempletonPilotSession(Session):
 
     @property
     def id(self) -> str:
-        """Same as `folder`."""
-        return f'{self.project}_{self.folder}'
+        return self.ephys_folder
 
     @property
     def folder(self) -> str:
         """Folder name."""
         return self._folder
+    
+    @property
+    def session_folder(self) -> str:
+        """A made-up folder name that matches other session folders."""
+        return self.info_to_session_folder(self.info)
+    @property
+    def ephys_folder(self) -> str:
+        """Original format of session folders (default from Open Ephys)."""
+        return self.info_to_ephys_folder(self.info)
+
+    @classmethod
+    def info_to_session_folder(cls, info: InfoFromPath) -> str:
+        return f'{cls.project}_{info.mouse}_{info.date.strftime(cls.session_date_format)}_{info.time.strftime(cls.session_time_format)}'
+
+    @classmethod
+    def info_to_ephys_folder(cls, info: InfoFromPath) -> str:
+        return f'{info.date.strftime(cls.ephys_date_format)}_{info.time.strftime(cls.ephys_time_format)}_{info.mouse}'
 
     @folder.setter
     def folder(self, value: str | PathLike) -> None:
         folder = self.get_folder(value)
         if folder is None:
             raise ValueError(
-                f'Session folder must be in the format `templeton*/pilot*/**/[date: %Y-%m-%d_%H-%M-%S]_[6-digit mouse ID]`: {value}'
+                f'Session folder must be in the format `[datetime: %Y-%m-%d_%H-%M-%S]_[6-digit mouse ID]`: {value}'
             )
         self._folder = folder
 
-    @staticmethod
-    def get_folder(path: str | pathlib.Path) -> str | None:
-        session_reg_exp = R'[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}_[0-9]{6}'
-        session_folders = re.findall(session_reg_exp, str(path), re.IGNORECASE)
-        if session_folders and 'templeton' in str(path).lower() and 'pilot' in str(path).lower():
-            return session_folders[0]
-
+    @classmethod
+    def get_folder(cls, path: str | pathlib.Path) -> str | None:
+        info = cls.info_from_path(path)
+        if info is None:
+            return None
+        if cls.get_extant_path(path):
+            return cls.info_to_session_folder(info)
+            
     @classmethod
     def new(
         cls,
@@ -133,19 +198,15 @@ class TempletonPilotSession(Session):
         **kwargs,
     ) -> Self:
         """Create a new session folder for a mouse."""
-        path = cls.storage_dirs[0] / f'{datetime.datetime.now().strftime(cls.datetime_format)}_{mouse_labtracks_id}'
+        path = cls.storage_dirs[0] / f'{datetime.datetime.now().strftime(f"{cls.ephys_date_format}_{cls.ephys_time_format}")}_{mouse_labtracks_id}'
         return cls(path)
     
     @property
     def npexp_path(self) -> pathlib.Path:
         with contextlib.suppress(AttributeError):
             return self._npexp_path
-        for _ in self.storage_dirs:
-            path = _ / self.folder
-            if path.exists():
-                self.npexp_path = path
-                break
-        return self.npexp_path
+        
+        raise FileNotFoundError(f'Could not find {self.folder} of {self.id} in {self.storage_dirs}')
 
     @npexp_path.setter
     def npexp_path(self, value: pathlib.Path) -> None:
