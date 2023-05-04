@@ -129,6 +129,8 @@ class TempletonPilotSession(Session):
     def new(
         cls,
         mouse_labtracks_id: int | str | Mouse,
+        *args,
+        **kwargs,
     ) -> Self:
         """Create a new session folder for a mouse."""
         path = cls.storage_dirs[0] / f'{datetime.datetime.now().strftime(cls.datetime_format)}_{mouse_labtracks_id}'
