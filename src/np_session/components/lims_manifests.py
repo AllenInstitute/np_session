@@ -204,7 +204,7 @@ class Manifest:
                 break
 
         for _ in (*args, *kwargs.values()):
-            if _ in np_session.session.Projects.__members__:
+            if _ in np_session.components.info.Projects.__members__:
                 self.project = _
                 break
 
