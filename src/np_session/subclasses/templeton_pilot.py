@@ -199,6 +199,7 @@ class TempletonPilotSession(Session):
     ) -> Self:
         """Create a new session folder for a mouse."""
         path = cls.storage_dirs[0] / f'{datetime.datetime.now().strftime(f"{cls.ephys_date_format}_{cls.ephys_time_format}")}_{mouse_labtracks_id}'
+        path.mkdir(parents=True, exist_ok=True)
         return cls(path)
     
     @property
