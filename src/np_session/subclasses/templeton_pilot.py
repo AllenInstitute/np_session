@@ -194,13 +194,18 @@ class TempletonPilotSession(Session):
     def new(
         cls,
         mouse_labtracks_id: int | str | Mouse,
+        user: Optional[str | User] = None,
         *args,
         **kwargs,
     ) -> Self:
         """Create a new session folder for a mouse."""
         path = cls.storage_dirs[0] / f'{datetime.datetime.now().strftime(f"{cls.ephys_date_format}_{cls.ephys_time_format}")}_{mouse_labtracks_id}'
         path.mkdir(parents=True, exist_ok=True)
-        return cls(path)
+        session = cls(path)
+        if user:
+            session._user = user
+        session._mouse = Mouse(mouse_labtracks_id)
+        return session
     
     @property
     def npexp_path(self) -> pathlib.Path:

@@ -10,11 +10,11 @@ import np_config
 import np_logging
 from typing_extensions import Self
 
-from np_session.components.info import Project, User, Mouse
+from np_session.components.info import Mouse, Project, User
 from np_session.components.paths import *
 from np_session.components.platform_json import *
-from np_session.utils import *
 from np_session.session import Session
+from np_session.utils import *
 
 logger = np_logging.getLogger(__name__)
 
@@ -122,12 +122,18 @@ class DRPilotSession(Session):
     def new(
         cls,
         mouse_labtracks_id: int | str | Mouse,
+        user: Optional[str | User] = None,
         *args,
         **kwargs,
     ) -> Self:
         """Create a new session folder for a mouse."""
         path = cls.storage_dirs[0] / f'DRpilot_{mouse_labtracks_id}_{datetime.date.today().strftime("%Y%m%d")}'
-        return cls(path)
+        path.mkdir(parents=True, exist_ok=True)
+        session = cls(path)
+        if user:
+            session._user = user
+        session._mouse = Mouse(mouse_labtracks_id)
+        return cls(path, *args, **kwargs)
     
     @property
     def npexp_path(self) -> pathlib.Path:
