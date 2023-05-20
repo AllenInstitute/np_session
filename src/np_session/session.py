@@ -163,8 +163,6 @@ class Session(WithState):
     """Project name for the session, e.g. 'NeuropixelVisualBehavior'"""
     rig: Optional[str | np_config.Rig] = None
     """Rig ID, e.g. 'NP.0'"""
-    user: Optional[str | User] = None
-    """Operator for the session"""
     lims: Optional[dict | LIMS2SessionInfo] = None
     mtrain: Optional[mtrain.MTrain] = None
     foraging_id: Optional[str] = None
@@ -191,7 +189,13 @@ class Session(WithState):
     def npexp_path(self) -> pathlib.Path:
         """np-exp root / folder (may not exist)"""
         return NPEXP_ROOT / self.folder
-
+    
+    @property
+    def user(self) -> str | User | None:
+        """Operator for the session"""
+        if hasattr(self, '_user'):
+            return self._user
+    
     @property
     def mouse(self) -> str | Mouse:
         if not hasattr(self, '_mouse'):
