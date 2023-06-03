@@ -78,7 +78,7 @@ class DRPilotSession(Session):
     def __init__(self, path_or_session: PathLike) -> None:
         super().__init__(path_or_session)
 
-        if pathlib.Path(path_or_session).exists():
+        if pathlib.Path(str(path_or_session)).exists():
             self.npexp_path = pathlib.Path(path_or_session)
 
     @property

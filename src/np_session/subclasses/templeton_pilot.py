@@ -92,7 +92,7 @@ class TempletonPilotSession(Session):
     def __init__(self, path_or_session: PathLike) -> None:
         super().__init__(path_or_session)
 
-        self.npexp_path = self.get_extant_path(path_or_session) or self.get_extant_path(self.folder)
+        self.npexp_path = self.get_extant_path(str(path_or_session)) or self.get_extant_path(self.folder)
     
     @classmethod
     def get_extant_path(cls, path: str | PathLike) -> pathlib.Path | None:
