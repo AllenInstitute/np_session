@@ -22,7 +22,7 @@ import functools
 import json
 import pathlib
 import re
-from typing import Any, Callable, Type
+from typing import Any, Callable, Optional, Type
 
 import np_logging
 import requests
@@ -299,6 +299,7 @@ class LIMS2BehaviorSessionInfo(LIMS2SessionInfo):
 def generate_ephys_session(
     mouse: str | int | LIMS2MouseInfo,
     user: str | LIMS2UserInfo,
+    timestamp: Optional[datetime.datetime] = None,
 ) -> LIMS2SessionInfo:
     """Create a new session and return an object instance with its info."""
 
@@ -307,12 +308,15 @@ def generate_ephys_session(
     if not isinstance(user, LIMS2UserInfo):
         user = LIMS2UserInfo(user)
 
-    timestamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+    if timestamp is None:
+        timestamp = datetime.datetime.now()
+    assert timestamp
+    
     request_json = {
         'specimen_id': mouse.lims_id,
         'project_id': mouse.project_id,
         'isi_experiment_id': mouse.isi_id,
-        'name': f'{timestamp}_{user.lims_id}',
+        'name': f'{timestamp.strftime("%Y%m%d%H%M%S")}_{user.lims_id}',
         'operator_id': user.lims_id,
     }
     url = 'http://lims2/observatory/ecephys_session/create'
