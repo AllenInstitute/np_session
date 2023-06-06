@@ -7,6 +7,7 @@ import os
 import pathlib
 from typing import Any, Iterable, Optional, Type, TypeVar, Union
 
+from backports.cached_property import cached_property
 import np_config
 import np_logging
 from typing_extensions import Literal, Self
@@ -37,6 +38,8 @@ class Session(WithState):
 
     Quick access to useful properties:
     >>> session = Session('c:/1116941914_surface-image1-left.png')
+    >>> session == Session(session) # init with Session instance acceptable
+    True
     >>> session.lims.id
     1116941914
     >>> session.folder
@@ -107,6 +110,8 @@ class Session(WithState):
 
     @staticmethod
     def subclass_from_factory(*args, **kwargs) -> Type[Session]:
+        if isinstance(args[0], __class__):
+            return args[0].__class__
         import np_session.subclasses as subclasses
 
         if __name__ == '__main__':
@@ -247,6 +252,25 @@ class Session(WithState):
                 f'Probes must be a sequence of letters A-F, got {inserted}'
             )
         self._probes = tuple(p for p in inserted)
+
+
+    @cached_property
+    def metrics_csv(self) -> tuple[pathlib.Path, ...]:
+        return tuple(self.npexp_path.rglob('metrics.csv'))
+
+    @cached_property
+    def probe_letter_to_metrics_csv_path(self) -> dict[str, pathlib.Path]:
+        csv_paths = self.metrics_csv
+        if not csv_paths:
+            return {}
+
+        def letter(x):
+            return re.findall('(?<=_probe)[A-F]', str(x))
+
+        probe_letters = [_[-1] for _ in map(letter, csv_paths) if _]
+        if probe_letters:
+            return dict(zip(probe_letters, csv_paths))
+        return {}
 
 
 if __name__ == '__main__':
