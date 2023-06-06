@@ -263,8 +263,8 @@ class PipelineSession(Session):
 
     @property
     def qc_path(self) -> pathlib.Path:
-        """Expected default path, or alternative if one exists - see `qc_paths` for all available"""
-        return self.qc_paths[0] if self.qc_paths else QC_PATHS[0] / self.folder
+        """Expected default path (may not exist). See `qc_paths` for all existing."""
+        return self.npexp_path / 'qc'
 
     @cached_property
     def qc_paths(self) -> list[pathlib.Path]:
@@ -273,7 +273,7 @@ class PipelineSession(Session):
             path / self.folder
             for path in QC_PATHS
             if (path / self.folder).exists()
-        ]
+        ] + ([self.qc_path] if self.qc_path.exists() else [])
 
     @property
     def project(self) -> Project | None:
@@ -430,6 +430,7 @@ class PipelineSession(Session):
     @cached_property
     def metrics_csv(self) -> tuple[pathlib.Path, ...]:
         probe_letters = self.data_dict.get('data_probes')
+        probe_letters = self.probes_inserted
         probe_paths = [
             self.data_dict.get(f'probe{letter}') for letter in probe_letters
         ]
@@ -441,22 +442,7 @@ class PipelineSession(Session):
             ]
             if csv_paths:
                 return tuple(csv_paths)
-        if self.npexp_path.exists():
-            return tuple(self.npexp_path.glob('*/*/*/metrics.csv'))
-
-    @cached_property
-    def probe_letter_to_metrics_csv_path(self) -> dict[str, pathlib.Path]:
-        csv_paths = self.metrics_csv
-        if not csv_paths:
-            return {}
-
-        def letter(x):
-            return re.findall('(?<=_probe)[A-F]', str(x))
-
-        probe_letters = [_[-1] for _ in map(letter, csv_paths) if _]
-        if probe_letters:
-            return dict(zip(probe_letters, csv_paths))
-        return {}
+        return tuple(self.npexp_path.glob('*/*/*/metrics.csv'))
 
     @property
     def platform_json(self) -> PlatformJson:
