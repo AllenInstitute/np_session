@@ -55,3 +55,14 @@ LIMS2MouseInfo(576323)
 'NP.0'
 
 ```
+
+## Adding a new project
+
+- Add an enum with any project identifiers (e.g. lims project code) to
+  `components.info.Projects`
+
+- Create an entry for lims manifests (if applicable) in Zookeeper at
+  `projects/np_session/manifests`
+    - the D1 manifest will need customizing (see other entries)
+    - the default D0 and D2 manifests will likely suffice: nothing needs
+      to be done
