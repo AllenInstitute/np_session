@@ -133,6 +133,7 @@ class Projects(enum.Enum):
     )
     GLO = ('OpenScopeGlobalLocalOddball',)
     ILLUSION = ('OpenScopeIllusion',)
+    BARCODE = ('OpenScopeTemporalBarcode', )
     DRDG = (
         'DynamicRoutingSurgicalDevelopment',
         'DynamicRoutingDynamicGating',
