@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import datetime
 import doctest
+import itertools
 import os
 import pathlib
 from typing import Any, Iterable, Optional, Type, TypeVar, Union
@@ -254,6 +255,20 @@ class Session(WithState):
         self._probes = tuple(p for p in inserted)
 
 
+    @property
+    def sync(self) -> pathlib.Path | None: 
+        files = tuple(
+            itertools.chain(
+                self.npexp_path.glob('*.sync'),
+                self.npexp_path.glob(f'{self.date:%Y%m%d}T*.h5'),
+            ),
+        )
+        if len(files) > 1:
+            raise FileNotFoundError(
+                f'Multiple sync files found: {files}'
+            )
+        return None if not files else files[0]
+        
     @cached_property
     def metrics_csv(self) -> tuple[pathlib.Path, ...]:
         return tuple(self.npexp_path.rglob('metrics.csv'))
