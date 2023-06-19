@@ -79,12 +79,24 @@ class DRPilotSession(Session):
         super().__init__(path_or_session)
 
         if pathlib.Path(str(path_or_session)).exists():
-            self.npexp_path = pathlib.Path(path_or_session)
-
+            path = pathlib.Path(path_or_session)
+            self.npexp_path = path.parent if path.is_dir() else path
+            
+    @property
+    def hdf5s(self) -> tuple[pathlib.Path, ...]:
+        with contextlib.suppress(AttributeError):
+            return self._hdf5s        
+        self._hdf5s = tuple(self.hdf5_dir.glob(f'*_{self.mouse}_{self.date:%Y%m%d}_*.hdf5'))
+        return self.hdf5s
+    
+    @property
+    def hdf5_dir(self) -> pathlib.Path:
+        return pathlib.Path(f"//allen/programs/mindscope/workgroups/dynamicrouting/DynamicRoutingTask/Data/{self.mouse}")
+    
     @property
     def rig(self) -> np_config.Rig:
         """Rig information from the session folder name."""
-        if self.date < datetime.date(2023, 5, 1):
+        if self.date < datetime.date(2023, 6, 1):
             return np_config.Rig(3)
         return np_config.Rig(2)
 
