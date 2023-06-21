@@ -80,7 +80,7 @@ class DRPilotSession(Session):
 
         if pathlib.Path(str(path_or_session)).exists():
             path = pathlib.Path(path_or_session)
-            self.npexp_path = path.parent if path.is_dir() else path
+            self.npexp_path = path if path.is_dir() else path.parent
             
     @property
     def hdf5s(self) -> tuple[pathlib.Path, ...]:
