@@ -254,7 +254,12 @@ class Session(WithState):
             )
         self._probes = tuple(p for p in inserted)
 
-
+    
+    @property
+    def qc_path(self) -> pathlib.Path:
+        """Expected default path (may not exist). See `qc_paths` for all existing."""
+        return self.npexp_path / 'qc'
+    
     @property
     def sync(self) -> pathlib.Path | None: 
         files = tuple(
