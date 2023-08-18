@@ -261,11 +261,6 @@ class PipelineSession(Session):
             / self.folder
         )
 
-    @property
-    def qc_path(self) -> pathlib.Path:
-        """Expected default path (may not exist). See `qc_paths` for all existing."""
-        return self.npexp_path / 'qc'
-
     @cached_property
     def qc_paths(self) -> list[pathlib.Path]:
         """Any QC folders that exist"""
