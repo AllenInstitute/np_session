@@ -254,6 +254,46 @@ class Session(WithState):
             )
         self._probes = tuple(p for p in inserted)
 
+    @property
+    def video_paths(self) -> tuple[pathlib.Path, ...]:
+        return tuple(
+            p for p in self.npexp_path.glob('*')
+            if p.suffix in (".avi", ".mp4", ".zip")
+            and any(label in p.stem.lower() for label in ("eye", "face", "beh"))
+        )
+    @property
+    def video_info_paths(self) ->  tuple[pathlib.Path, ...]:
+        return tuple(
+            p.with_suffix(".json").with_stem(p.stem.replace(".mp4", "").replace(".avi", "")) for p in self.video_paths
+        )
+    
+    def get_video(self, camera: Literal['beh', 'behavior', 'eye', 'face']) -> pathlib.Path:
+        """Get the video path for a given camera"""
+        if camera == 'behavior':
+            camera = 'beh'
+        for path in self.video_paths:
+            if camera in path.stem.lower():
+                return path
+        raise FileNotFoundError(f'No video found for {camera} in {self.npexp_path}')
+    
+    def get_video_info(self, camera: Literal['beh', 'behavior', 'eye', 'face']) -> pathlib.Path:
+        """Get the video info path for a given camera"""
+        if camera == 'behavior':
+            camera = 'beh'
+        for path in self.video_info_paths:
+            if camera in path.stem.lower():
+                return path
+        raise FileNotFoundError(f'No video info found for {camera} in {self.npexp_path}')
+    
+    behavior_video = functools.partialmethod(get_video, 'behavior')
+    beh_video = functools.partialmethod(get_video, 'behavior')
+    eye_video = functools.partialmethod(get_video, 'eye')
+    face_video = functools.partialmethod(get_video, 'face')
+    behavior_video_info = functools.partialmethod(get_video_info, 'behavior')
+    beh_video_info = functools.partialmethod(get_video_info, 'behavior')
+    eye_video_info = functools.partialmethod(get_video_info, 'eye')
+    face_video_info = functools.partialmethod(get_video_info, 'face')
+    
     
     @property
     def qc_path(self) -> pathlib.Path:
