@@ -268,11 +268,26 @@ class Session(WithState):
                 f'Multiple sync files found: {files}'
             )
         return None if not files else files[0]
+    
+    @property
+    def datajoint_path(self) -> pathlib.Path | None:
+        path = paths.DATAJOINT_ROOT / 'ks_paramset_idx_1' / str(self)
+        if path.exists():
+            return path
         
     @cached_property
     def metrics_csv(self) -> tuple[pathlib.Path, ...]:
-        return tuple(self.npexp_path.rglob('metrics.csv'))
-
+        for path in (
+            self.npexp_path,
+            self.datajoint_path,
+            ):
+            if path is None:
+                continue
+            csvs = tuple(path.rglob('metrics.csv'))
+            if csvs:
+                return csvs
+        return ()
+        
     @cached_property
     def probe_letter_to_metrics_csv_path(self) -> dict[str, pathlib.Path]:
         csv_paths = self.metrics_csv
