@@ -78,9 +78,7 @@ class WithState(Protocol):
 
 class Mouse(WithLims, WithState, InfoBaseClass):
     def __init__(self, labtracks_mouse_id: str | int | Mouse):
-        if isinstance(labtracks_mouse_id, Mouse):
-            return
-        self.id = int(labtracks_mouse_id)
+        self.id = int(str(labtracks_mouse_id))
 
     @property
     def lims(self) -> LIMS2MouseInfo | dict:
@@ -105,8 +103,6 @@ class Mouse(WithLims, WithState, InfoBaseClass):
 
 class User(WithState, InfoBaseClass):
     def __init__(self, lims_user_id: str | User):
-        if isinstance(lims_user_id, User):
-            return
         self.id = str(lims_user_id)
 
     @cached_property
