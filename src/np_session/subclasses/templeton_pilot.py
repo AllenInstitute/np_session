@@ -17,11 +17,12 @@ from np_session.components.paths import *
 from np_session.components.platform_json import *
 from np_session.utils import *
 from np_session.session import Session
+from np_session.subclasses.dynamic_routing_pilot import DRPilotSession
 
 logger = np_logging.getLogger(__name__)
 
 
-class TempletonPilotSession(Session):
+class TempletonPilotSession(DRPilotSession):
     """Session information from any string or PathLike containing a session ID.
 
     Note: lims/mtrain properties may be empty or None if mouse/session isn't in db.
@@ -40,7 +41,7 @@ class TempletonPilotSession(Session):
     >>> session.npexp_path.as_posix()
     '//allen/programs/mindscope/workgroups/templeton/TTOC/pilot recordings/2023-01-18_10-44-55_646318'
     >>> session1 = TempletonPilotSession("2023-01-18_10-44-55_646318")
-    >>> session2 = TempletonPilotSession("TempletonPilot_646318_20230118_104455")
+    >>> session2 = Session("TempletonPilot_646318_20230118_104455")
     >>> session == session1 == session2
     True
     
