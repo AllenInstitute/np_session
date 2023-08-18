@@ -8,7 +8,7 @@ import warnings
 
 import np_config
 import np_logging
-from typing_extensions import Self
+from typing_extensions import Self, ClassVar
 
 from np_session.components.info import Mouse, Project, User
 from np_session.components.paths import *
@@ -67,9 +67,9 @@ class DRPilotSession(Session):
     storage_dirs: ClassVar[tuple[pathlib.Path, ...]] = tuple(
         pathlib.Path(_)
         for _ in (
-            '//10.128.50.140/Data2',
             '//allen/programs/mindscope/workgroups/dynamicrouting/PilotEphys/Task 2 pilot',
             '//allen/programs/mindscope/workgroups/np-exp/PilotEphys/Task 2 pilot',
+            '//10.128.50.140/Data2',
         )
     )
     """Various directories where DRpilot sessions are stored - use `npexp_path`
@@ -86,12 +86,17 @@ class DRPilotSession(Session):
     def hdf5s(self) -> tuple[pathlib.Path, ...]:
         with contextlib.suppress(AttributeError):
             return self._hdf5s        
-        self._hdf5s = tuple(self.hdf5_dir.glob(f'*_{self.mouse}_{self.date:%Y%m%d}_*.hdf5'))
+        self._hdf5s = (
+            tuple(self.hdf5_dir.glob(f'*_{self.mouse}_{self.date:%Y%m%d}_*.hdf5'))
+            + tuple(self.npexp_path.glob(f'*_{self.mouse}_{self.date:%Y%m%d}_*.hdf5'))
+            + tuple(self.npexp_path.glob(f'*_test_{self.date:%Y%m%d}_*.hdf5'))
+        )
         return self.hdf5s
     
     @property
     def hdf5_dir(self) -> pathlib.Path:
         return pathlib.Path(f"//allen/programs/mindscope/workgroups/dynamicrouting/DynamicRoutingTask/Data/{self.mouse}")
+    
     
     @property
     def rig(self) -> np_config.Rig:
@@ -99,7 +104,12 @@ class DRPilotSession(Session):
         if self.date < datetime.date(2023, 6, 1):
             return np_config.Rig(3)
         return np_config.Rig(2)
-
+    
+    @property
+    def start(self) -> datetime.datetime:
+        t = self.sync.stem.replace('T', '')[:14]
+        return datetime.datetime(int(t[:4]), int(t[4:6]), int(t[6:8]), int(t[8:10]), int(t[10:12]), int(t[12:14]))    
+    
     @property
     def id(self) -> str:
         """Same as `folder`."""
@@ -145,7 +155,7 @@ class DRPilotSession(Session):
         if user:
             session._user = user
         session._mouse = Mouse(mouse_labtracks_id)
-        return cls(path, *args, **kwargs)
+        return session
     
     @property
     def npexp_path(self) -> pathlib.Path:
@@ -169,8 +179,15 @@ class DRPilotSession(Session):
             "LIMS info not available: LIMS sessions weren't created for for DRPilot experiments."
         )
         return {}
-
-
+    
+    @property
+    def metrics_csv(self) -> tuple[pathlib.Path, ...]:
+        """Prioritizes `npexp_path/*/metrics_test.csv`, then regular npexp
+        glob, then datajoint."""
+        csvs = tuple(self.npexp_path.rglob('metrics_test.csv'))
+        return csvs or super().metrics_csv # type: ignore
+    
+    
 if __name__ == '__main__':
     doctest.testmod(verbose=True)
     optionflags = (
