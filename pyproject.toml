@@ -21,7 +21,7 @@ dependencies = [
     "requests>=2",
     "backports.cached-property",
     "firebase-admin>=6.1.0",
-    "pydantic>=1.10.5",
+    "pydantic<2.0.0",
     "redis<=4.1.4", # redis>=4.1.4 adds async-timeout>=4.0: AllenSDK pins aiohttp ver with async-timeout < 4.0
 ]
 
