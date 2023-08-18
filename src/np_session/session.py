@@ -294,8 +294,8 @@ class Session(WithState):
         if not csv_paths:
             return {}
 
-        def letter(x):
-            return re.findall('(?<=_probe)[A-F]', str(x))
+        def letter(x: pathlib.Path):
+            return re.findall('(?<=[p|P]robe)[A-F]', str(x))
 
         probe_letters = [_[-1] for _ in map(letter, csv_paths) if _]
         if probe_letters:
