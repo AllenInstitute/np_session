@@ -264,7 +264,8 @@ class Session(WithState):
     @property
     def video_info_paths(self) ->  tuple[pathlib.Path, ...]:
         return tuple(
-            p.with_suffix(".json").with_stem(p.stem.replace(".mp4", "").replace(".avi", "")) for p in self.video_paths
+            p.with_suffix(".json").with_name(p.name.replace(".mp4", "").replace(".avi", ""))
+            for p in self.video_paths
         )
     
     def get_video(self, camera: Literal['beh', 'behavior', 'eye', 'face']) -> pathlib.Path:
@@ -285,14 +286,14 @@ class Session(WithState):
                 return path
         raise FileNotFoundError(f'No video info found for {camera} in {self.npexp_path}')
     
-    behavior_video = functools.partialmethod(get_video, 'behavior')
-    beh_video = functools.partialmethod(get_video, 'behavior')
-    eye_video = functools.partialmethod(get_video, 'eye')
-    face_video = functools.partialmethod(get_video, 'face')
-    behavior_video_info = functools.partialmethod(get_video_info, 'behavior')
-    beh_video_info = functools.partialmethod(get_video_info, 'behavior')
-    eye_video_info = functools.partialmethod(get_video_info, 'eye')
-    face_video_info = functools.partialmethod(get_video_info, 'face')
+    get_behavior_video = functools.partialmethod(get_video, 'behavior')
+    get_beh_video = functools.partialmethod(get_video, 'behavior')
+    get_eye_video = functools.partialmethod(get_video, 'eye')
+    get_face_video = functools.partialmethod(get_video, 'face')
+    get_behavior_video_info = functools.partialmethod(get_video_info, 'behavior')
+    get_beh_video_info = functools.partialmethod(get_video_info, 'behavior')
+    get_eye_video_info = functools.partialmethod(get_video_info, 'eye')
+    get_face_video_info = functools.partialmethod(get_video_info, 'face')
     
     
     @property
