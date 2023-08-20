@@ -264,7 +264,7 @@ class Session(WithState):
     @property
     def video_info_paths(self) ->  tuple[pathlib.Path, ...]:
         return tuple(
-            p.with_suffix(".json").with_name(p.name.replace(".mp4", "").replace(".avi", ""))
+            p.with_suffix(".json")
             for p in self.video_paths
         )
     
