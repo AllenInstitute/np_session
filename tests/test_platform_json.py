@@ -29,6 +29,8 @@ def test_path(p, tmp_path):
     assert tmp_path in p.path.parents
 
 def test_initialization(p):
+    print(p.workflow_start_time)
+    print(p.workflow_start_time.isnumeric())
     assert p.workflow_start_time.isnumeric()
     assert 'NP.' in p.rig_id
 

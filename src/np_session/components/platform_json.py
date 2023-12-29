@@ -5,12 +5,14 @@ import copy
 import datetime
 import json
 import pathlib
+import re
 import time
 from typing import Any, ClassVar, Dict, Generator, List, Optional, Union
 
 import np_config
 import np_logging
 import pydantic
+from pydantic_core import CoreSchema
 
 logger = np_logging.getLogger(__name__)
 
@@ -26,20 +28,19 @@ class PlatformJsonDateTime(datetime.datetime):
         yield cls.validate
 
     @classmethod
-    def __modify_schema__(cls, field_schema):
-        # __modify_schema__ should mutate the dict it receives in place,
-        # the returned value will be ignored
-        field_schema.update(
-            pattern='[0-9]{14}',
+    def __get_pydantic_json_schema__(
+        cls, core_schema: CoreSchema, handler: pydantic.GetJsonSchemaHandler
+    ) -> Dict[str, Any]:
+        json_schema = super().__get_pydantic_json_schema__(core_schema, handler)
+        json_schema = handler.resolve_ref_schema(json_schema)
+        json_schema.update(
             # some example postcodes
             examples=['20220414134738'],
         )
-
-    # def __init__(self, v) -> None:
-    #     super().__init__(*self.str2components(np_config.normalize_time(v)))
+        return json_schema
 
     @classmethod
-    def validate(cls, v):
+    def validate(cls, v, *args, **kwargs):
         if not v:
             return None
         if not isinstance(v, str) and len(v) != 14:
@@ -63,25 +64,37 @@ class PlatformJson(pydantic.BaseModel):
     # ------------------------------------------------------------------------------------- #
     # required kwargs on init (any property without a default value or leading underscore)
 
-    path: pathlib.Path
+    path: pathlib.Path = pydantic.Field(
+        exclude=True,
+    )
     'Typically the storage directory for the session. Will be modified on assignment.'
 
     # ------------------------------------------------------------------------------------- #
 
-    file_sync: bool = True
+    file_sync: bool = pydantic.Field(
+        default=True,
+        exclude=True,
+    )
 
     @contextlib.contextmanager
     def sync_disabled(self) -> Generator[None, None, None]:
         """Context manager to temporarily disable writing to file when a property is updated."""
         self.file_sync = False
         yield
-        self.file_sync = True
+        self.file_sync = True   
 
-    class Config:
-        validate_assignment = True   # coerce types on assignment
-        extra = 'allow'   # 'forbid' = properties must be defined in the model
-        fields = {'path': {'exclude': True}, 'file_sync': {'exclude': True}}
-        arbitrary_types_allowed = True
+    model_config = pydantic.ConfigDict(
+        validate_assignment=True,
+        extra='allow',
+        arbitrary_types_allowed=True,
+
+    )
+
+    # class ConfigDict:
+    #     validate_assignment = True   # coerce types on assignment
+    #     extra = 'allow'   # 'forbid' = properties must be defined in the model
+    #     fields = {'path': {'exclude': True}, 'file_sync': {'exclude': True}}
+    #     arbitrary_types_allowed = True
 
     suffix: ClassVar[str] = '_platformD1.json'
 
@@ -116,7 +129,7 @@ class PlatformJson(pydantic.BaseModel):
 
         # if field is in non-validated list, just set it
         if name in (
-            k for k, v in self.Config.fields.items() if v.get('exclude')
+            k for k, v in self.model_fields.items() if v.exclude
         ):
             return super().__setattr__(name, value)
 
@@ -144,7 +157,7 @@ class PlatformJson(pydantic.BaseModel):
             self.platform_json_save_time = np_config.normalize_time(
                 time.time()
             )
-        self.path.write_text(self.json(indent=4))
+        self.path.write_text(self.model_dump_json(indent=4))
         logger.debug(
             '%s wrote to %s', self.__class__.__name__, self.path.as_posix()
         )
@@ -170,15 +183,22 @@ class PlatformJson(pydantic.BaseModel):
     )
 
     # auto-generated / ignored ------------------------------------------------------------- #
-    platform_json_save_time: Union[PlatformJsonDateTime, str] = ''
+    # platform_json_save_time: Union[PlatformJsonDateTime, str] = ''
+    platform_json_save_time: PlatformJsonDateTime = ''
     'Updated on write.'
     rig_id: Optional[str] = np_config.Rig().id if np_config.RIG_IDX else None
     wfl_version: float = 0
-    platform_json_creation_time: Union[PlatformJsonDateTime, str] = ''
-    # = pydantic.Field(
+    # platform_json_creation_time: Union[PlatformJsonDateTime, str] = pydantic.Field(
     #     default_factory=lambda: np_config.normalize_time(time.time()),
     #     validate=PlatformJsonDateTime.validate,
     # )
+    platform_json_creation_time: PlatformJsonDateTime = pydantic.Field(
+        default_factory=lambda: np_config.normalize_time(time.time()),
+        validate=PlatformJsonDateTime.validate,
+        # validate=bur,
+        # validate=lambda cls, _, value: PlatformJsonDateTime.validate(cls, value),
+    )
+    # pydantic.validator()
 
     # pre-experiment
     # ---------------------------------------------------------------------- #
@@ -225,10 +245,22 @@ class PlatformJson(pydantic.BaseModel):
     ExperimentNotes: Dict[str, Dict[str, Any]] = dict(
         BleedingOnInsertion={}, BleedingOnRemoval={}
     )
-    foraging_id: str = pydantic.Field(default='', regex=_foraging_id_re)
+    foraging_id: str = pydantic.Field(default='', pattern=_foraging_id_re)
     foraging_id_list: List[str] = pydantic.Field(
-        default_factory=lambda: [''], regex=_foraging_id_re
+        default_factory=lambda: [''],
     )
+    # @pydantic.field_validator('foraging_id_list')
+    # @classmethod
+    # def ids_in_foraging_id_list_match_pattern(
+    #         cls, v: List[str]) -> List[str]:
+    #     for foraging_id in v:
+    #         if re.match(cls._foraging_id_re, foraging_id) is None:
+    #             raise ValueError(
+    #                 'Id failed pattern check. id=%s, pattern=%s' % 
+    #                 (foraging_id, cls._foraging_id_re, )
+    #             )
+    #     return v
+
     HeadFrameExitTime: Union[PlatformJsonDateTime, str] = ''
     mouse_weight_post: str = ''
     water_supplement: float = 0.0
