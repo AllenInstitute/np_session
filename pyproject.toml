@@ -47,7 +47,7 @@ dev = [
 # usage: pdm run <script> [args]
 ruff = "ruff check src --fix-only"
 blue = "blue src"
-pytest = "pytest --cov"
+test = "pytest --cov"
 prebuild = {composite = ["blue", "ruff", "pytest"]}
 bump = "bump -p pyproject.toml" # defaults to patch; `pdm run bump -m` to bump minor
 build = {composite = ["prebuild", "pdm build"]}
