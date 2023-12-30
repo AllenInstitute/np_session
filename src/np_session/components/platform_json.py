@@ -162,11 +162,11 @@ class PlatformJson(pydantic.BaseModel):
             '%s wrote to %s', self.__class__.__name__, self.path.as_posix()
         )
 
-    @pydantic.validator('path', pre=True)
+    @pydantic.field_validator('path', mode="before")
     def normalize_path(cls, v: Union[str, pathlib.Path]) -> pathlib.Path:
         return np_config.normalize_path(v)
 
-    @pydantic.validator('path')
+    @pydantic.field_validator('path', mode="after")
     def add_filename_to_path(cls, v: pathlib.Path) -> pathlib.Path:
         name = cls.append_suffix_to_filename(v.name)
         return v / name if v.is_dir() else v.with_name(name)
