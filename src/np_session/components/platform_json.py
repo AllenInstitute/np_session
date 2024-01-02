@@ -6,38 +6,74 @@ import datetime
 import json
 import pathlib
 import re
+import typing
 import time
-from typing import Any, ClassVar, Dict, Generator, List, Optional, Union
+from typing import Any, ClassVar, Dict, Generator, List, Optional, Union, Annotated
 
 import np_config
 import np_logging
 import pydantic
-from pydantic_core import CoreSchema
+from pydantic_core import CoreSchema, core_schema
 
 logger = np_logging.getLogger(__name__)
 
 
 class PlatformJsonDateTime(datetime.datetime):
-    """ """
+    # """ """
 
-    @classmethod
-    def __get_validators__(cls):
-        # one or more validators may be yielded which will be called in the
-        # order to validate the input, each validator will receive as an input
-        # the value returned from the previous validator
-        yield cls.validate
+    # @classmethod
+    # def __get_validators__(cls):
+    #     # one or more validators may be yielded which will be called in the
+    #     # order to validate the input, each validator will receive as an input
+    #     # the value returned from the previous validator
+    #     yield cls.validate
 
-    @classmethod
-    def __get_pydantic_json_schema__(
-        cls, core_schema: CoreSchema, handler: pydantic.GetJsonSchemaHandler
-    ) -> Dict[str, Any]:
-        json_schema = super().__get_pydantic_json_schema__(core_schema, handler)
-        json_schema = handler.resolve_ref_schema(json_schema)
-        json_schema.update(
-            # some example postcodes
-            examples=['20220414134738'],
-        )
-        return json_schema
+    # @classmethod
+    # def __get_pydantic_core_schema__(
+    #     cls, 
+    #     source_type: typing.Any, 
+    #     handler: pydantic.GetCoreSchemaHandler
+    # ) -> CoreSchema:
+
+    #     def validate_from_str(v: str) -> str:
+    #         if not v:
+    #             return None
+    #         if not isinstance(v, str) and len(v) != 14:
+    #             raise TypeError('14-digit string required')
+    #         return cls(*cls.str2components(np_config.normalize_time(v)))
+
+    #     from_int_schema = core_schema.chain_schema(
+    #         [
+    #             core_schema.int_schema(),
+    #             core_schema.no_info_plain_validator_function(validate_from_str),
+    #         ]
+    #     )
+
+    #     return core_schema.json_or_python_schema(
+    #         json_schema=from_int_schema,
+    #         python_schema=core_schema.union_schema(
+    #             [
+    #                 # check if it's an instance first before doing any further work
+    #                 core_schema.is_instance_schema(ThirdPartyType),
+    #                 from_int_schema,
+    #             ]
+    #         ),
+    #         serialization=core_schema.plain_serializer_function_ser_schema(
+    #             lambda instance: instance.x
+    #         ),
+    #     )
+
+    # @classmethod
+    # def __get_pydantic_json_schema__(
+    #     cls, core_schema: CoreSchema, handler: pydantic.GetJsonSchemaHandler
+    # ) -> Dict[str, Any]:
+    #     json_schema = super().__get_pydantic_json_schema__(core_schema, handler)
+    #     json_schema = handler.resolve_ref_schema(json_schema)
+    #     json_schema.update(
+    #         # some example postcodes
+    #         examples=['20220414134738'],
+    #     )
+    #     return json_schema
 
     @classmethod
     def validate(cls, v, *args, **kwargs):
@@ -56,6 +92,72 @@ class PlatformJsonDateTime(datetime.datetime):
 
     def isoformat(self, *args, **kwargs) -> str:
         return str(self)
+
+
+class _PlatformJsonDateTimeAnnotation:
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, 
+        source_type: typing.Any, 
+        handler: pydantic.GetCoreSchemaHandler
+    ) -> CoreSchema:
+        """
+        We return a pydantic_core.CoreSchema that behaves in the following ways:
+
+        * strs will be parsed as `PlatformJsonDatetime` instances
+        * `PlatformJsonDatetime` instances will be parsed as `PlatformJsonDatetime` instances without any changes
+        * Nothing else will pass validation
+        * Serialization will always return just a str
+        """
+        def validate_from_str(v: str) -> str:
+            if not v:
+                return None
+            if not isinstance(v, str) and len(v) != 14:
+                raise TypeError('14-digit string required')
+            return PlatformJsonDateTime(
+                *PlatformJsonDateTime.str2components(
+                    np_config.normalize_time(v)
+                )
+            )
+
+        from_str_schema = core_schema.chain_schema(
+            [
+                core_schema.str_schema(),
+                core_schema.no_info_plain_validator_function(
+                    validate_from_str
+                ),
+            ]
+        )
+
+        return core_schema.json_or_python_schema(
+            json_schema=from_str_schema,
+            python_schema=core_schema.union_schema(
+                [
+                    # check if it's an instance first before doing any further work
+                    core_schema.is_instance_schema(PlatformJsonDateTime),
+                    from_str_schema,
+                ]
+            ),
+            # serialization=core_schema.plain_serializer_function_ser_schema(
+            #     lambda instance: instance.isoformat()
+            # ),
+        )
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls,
+        _core_schema: core_schema.CoreSchema,
+        handler: pydantic.GetJsonSchemaHandler
+    ) -> pydantic.JsonSchemaValue:
+        # Use the same schema that would be used for `str`
+        return handler(core_schema.str_schema())
+
+
+# We now create an `Annotated` wrapper that we'll use as the annotation for fields on `BaseModel`s, etc.
+PydanticPlatformJsonDateTime = Annotated[
+    PlatformJsonDateTime, _PlatformJsonDateTimeAnnotation
+]
 
 
 class PlatformJson(pydantic.BaseModel):
@@ -89,12 +191,6 @@ class PlatformJson(pydantic.BaseModel):
         arbitrary_types_allowed=True,
 
     )
-
-    # class ConfigDict:
-    #     validate_assignment = True   # coerce types on assignment
-    #     extra = 'allow'   # 'forbid' = properties must be defined in the model
-    #     fields = {'path': {'exclude': True}, 'file_sync': {'exclude': True}}
-    #     arbitrary_types_allowed = True
 
     suffix: ClassVar[str] = '_platformD1.json'
 
@@ -184,7 +280,7 @@ class PlatformJson(pydantic.BaseModel):
 
     # auto-generated / ignored ------------------------------------------------------------- #
     # platform_json_save_time: Union[PlatformJsonDateTime, str] = ''
-    platform_json_save_time: PlatformJsonDateTime = ''
+    platform_json_save_time: PydanticPlatformJsonDateTime = ''
     'Updated on write.'
     rig_id: Optional[str] = np_config.Rig().id if np_config.RIG_IDX else None
     wfl_version: float = 0
@@ -192,7 +288,7 @@ class PlatformJson(pydantic.BaseModel):
     #     default_factory=lambda: np_config.normalize_time(time.time()),
     #     validate=PlatformJsonDateTime.validate,
     # )
-    platform_json_creation_time: PlatformJsonDateTime = pydantic.Field(
+    platform_json_creation_time: PydanticPlatformJsonDateTime = pydantic.Field(
         default_factory=lambda: np_config.normalize_time(time.time()),
         validate=PlatformJsonDateTime.validate,
         # validate=bur,
@@ -202,7 +298,7 @@ class PlatformJson(pydantic.BaseModel):
 
     # pre-experiment
     # ---------------------------------------------------------------------- #
-    workflow_start_time: Union[PlatformJsonDateTime, str] = ''
+    workflow_start_time: Union[PydanticPlatformJsonDateTime, str] = ''
     operatorID: Optional[str] = ''
     sessionID: Optional[Union[str, int]] = ''
     mouseID: Optional[Union[str, int]] = ''
@@ -228,20 +324,20 @@ class PlatformJson(pydantic.BaseModel):
     mouse_weight_pre: str = ''
     mouse_weight_pre_float: float = 0.0
 
-    HeadFrameEntryTime: Union[PlatformJsonDateTime, str] = ''
+    HeadFrameEntryTime: Union[PydanticPlatformJsonDateTime, str] = ''
     wheel_height: str = ''
-    CartridgeLowerTime: Union[PlatformJsonDateTime, str] = ''
-    ProbeInsertionStartTime: Union[PlatformJsonDateTime, str] = ''
-    ProbeInsertionCompleteTime: Union[PlatformJsonDateTime, str] = ''
+    CartridgeLowerTime: Union[PydanticPlatformJsonDateTime, str] = ''
+    ProbeInsertionStartTime: Union[PydanticPlatformJsonDateTime, str] = ''
+    ProbeInsertionCompleteTime: Union[PydanticPlatformJsonDateTime, str] = ''
     InsertionNotes: Dict[str, Dict] = pydantic.Field(default_factory=dict)
-    ExperimentStartTime: Union[PlatformJsonDateTime, str] = ''
+    ExperimentStartTime: Union[PydanticPlatformJsonDateTime, str] = ''
     stimulus_name: str = ''
     'MTrain stage (?).'
     script_name: Union[pathlib.Path, str] = ''
     'Path to stimulus script.'
 
     # post-experiment ---------------------------------------------------------------------- #
-    ExperimentCompleteTime: Union[PlatformJsonDateTime, str] = ''
+    ExperimentCompleteTime: Union[PydanticPlatformJsonDateTime, str] = ''
     ExperimentNotes: Dict[str, Dict[str, Any]] = dict(
         BleedingOnInsertion={}, BleedingOnRemoval={}
     )
@@ -261,11 +357,11 @@ class PlatformJson(pydantic.BaseModel):
     #             )
     #     return v
 
-    HeadFrameExitTime: Union[PlatformJsonDateTime, str] = ''
+    HeadFrameExitTime: Union[PydanticPlatformJsonDateTime, str] = ''
     mouse_weight_post: str = ''
     water_supplement: float = 0.0
-    manifest_creation_time: Union[PlatformJsonDateTime, str] = ''
-    workflow_complete_time: Union[PlatformJsonDateTime, str] = ''
+    manifest_creation_time: Union[PydanticPlatformJsonDateTime, str] = ''
+    workflow_complete_time: Union[PydanticPlatformJsonDateTime, str] = ''
 
     manipulator_coordinates: Dict[str, Dict[Any, Any]] = pydantic.Field(
         default_factory=dict
