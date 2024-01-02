@@ -84,9 +84,6 @@ class _PlatformJsonDateTimeAnnotation:
                     from_str_schema,
                 ]
             ),
-            # serialization=core_schema.plain_serializer_function_ser_schema(
-            #     lambda instance: instance.isoformat()
-            # ),
         )
 
     @classmethod
@@ -226,15 +223,10 @@ class PlatformJson(pydantic.BaseModel):
     )
 
     # auto-generated / ignored ------------------------------------------------------------- #
-    # platform_json_save_time: Union[PlatformJsonDateTime, str] = ''
-    platform_json_save_time: PydanticPlatformJsonDateTime = ''
+    platform_json_save_time: Union[PydanticPlatformJsonDateTime, str] = ''
     'Updated on write.'
     rig_id: Optional[str] = np_config.Rig().id if np_config.RIG_IDX else None
     wfl_version: float = 0
-    # platform_json_creation_time: Union[PlatformJsonDateTime, str] = pydantic.Field(
-    #     default_factory=lambda: np_config.normalize_time(time.time()),
-    #     validate=PlatformJsonDateTime.validate,
-    # )
     platform_json_creation_time: PydanticPlatformJsonDateTime = pydantic.Field(
         default_factory=lambda: np_config.normalize_time(time.time()),
     )
