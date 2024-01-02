@@ -21,7 +21,7 @@ logger = np_logging.getLogger(__name__)
 class PlatformJsonDateTime(datetime.datetime):
 
     @classmethod
-    def validate(cls, v, *args, **kwargs):
+    def validate(cls, v):
         if not v:
             return None
         if not isinstance(v, str) and len(v) != 14:
@@ -35,7 +35,7 @@ class PlatformJsonDateTime(datetime.datetime):
     def __str__(self):
         return np_config.normalize_time(self)
 
-    def isoformat(self, *args, **kwargs) -> str:
+    def isoformat(self) -> str:
         return str(self)
 
 
