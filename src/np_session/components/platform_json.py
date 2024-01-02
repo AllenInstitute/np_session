@@ -101,7 +101,9 @@ class _PlatformJsonDateTimeAnnotation:
 
 # We now create an `Annotated` wrapper that we'll use as the annotation for fields on `BaseModel`s, etc.
 PydanticPlatformJsonDateTime = Annotated[
-    PlatformJsonDateTime, _PlatformJsonDateTimeAnnotation
+    PlatformJsonDateTime,
+    _PlatformJsonDateTimeAnnotation,
+    pydantic.PlainValidator(PlatformJsonDateTime.validate),
 ]
 
 
@@ -235,11 +237,7 @@ class PlatformJson(pydantic.BaseModel):
     # )
     platform_json_creation_time: PydanticPlatformJsonDateTime = pydantic.Field(
         default_factory=lambda: np_config.normalize_time(time.time()),
-        validate=PlatformJsonDateTime.validate,
-        # validate=bur,
-        # validate=lambda cls, _, value: PlatformJsonDateTime.validate(cls, value),
     )
-    # pydantic.validator()
 
     # pre-experiment
     # ---------------------------------------------------------------------- #
