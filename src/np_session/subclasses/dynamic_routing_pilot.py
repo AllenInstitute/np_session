@@ -34,7 +34,7 @@ class DRPilotSession(Session):
     >>> session.is_ecephys
     True
     >>> session.rig.acq # hostnames reflect the computers used during the session, not necessarily the current machines
-    'W10DT05516'
+    'W10DTM714205'
 
     Some properties are returned as objects with richer information:
 

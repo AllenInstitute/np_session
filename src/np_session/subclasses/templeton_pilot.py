@@ -37,7 +37,7 @@ class TempletonPilotSession(DRPilotSession):
     >>> session.is_ecephys
     True
     >>> session.rig.acq # hostnames reflect the computers used during the session, not necessarily the current machines
-    'W10DT05516'
+    'W10DTM714205'
     >>> session.npexp_path.as_posix()
     '//allen/programs/mindscope/workgroups/templeton/TTOC/pilot recordings/2023-01-18_10-44-55_646318'
     >>> session1 = TempletonPilotSession("2023-01-18_10-44-55_646318")
