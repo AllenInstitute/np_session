@@ -35,7 +35,7 @@ class PlatformJsonDateTime(datetime.datetime):
     def __str__(self):
         return np_config.normalize_time(self)
 
-    def isoformat(self) -> str:
+    def isoformat(self, *args, **kwargs) -> str:
         return str(self)
 
 
