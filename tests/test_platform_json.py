@@ -17,6 +17,7 @@ from np_session import Session, PlatformJson
 
 
 session = Session('1246096278_366122_20230209')
+
 @pytest.fixture
 def p(tmp_path):
     return PlatformJson(path=tmp_path / session.folder)
@@ -28,20 +29,20 @@ def test_filename(p):
 def test_path(p, tmp_path):
     assert tmp_path in p.path.parents
 
-def test_initialization(p):
-    print(p.workflow_start_time)
-    print(p.workflow_start_time.isnumeric())
-    assert p.workflow_start_time.isnumeric()
-    assert 'NP.' in p.rig_id
-
+def test_datetime(p):
+    original = p.workflow_start_time = '20230214133000'
+    assert p.model_dump()['workflow_start_time'] == original
+    
 def test_write_read_update(p):
-    p.write()
+    p.workflow_start_time = '20230214133000'
     initial_time = p.workflow_start_time
-    # old = PlatformJson.parse_file(p.path)
-    time.sleep(2)
-    assert new.workflow_start_time > initial_time
-    new.load_from_existing()
-    assert new.workflow_start_time == initial_time
+    time.sleep(1)
+    p.workflow_start_time = '20230214133001'
+    updated_time = p.workflow_start_time
+    assert updated_time > initial_time
+    p = PlatformJson(path=p.path)
+    assert p.workflow_start_time != initial_time
+    assert p.workflow_start_time == updated_time
     
 
     
