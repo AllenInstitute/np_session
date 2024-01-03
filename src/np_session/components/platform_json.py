@@ -8,13 +8,13 @@ import pathlib
 import re
 import typing
 import time
-from typing import Any, ClassVar, Dict, Generator, List, Optional, Union, Annotated
+from typing import Any, ClassVar, Dict, Generator, List, Optional, Union
 
 import np_config
 import np_logging
 import pydantic
 from pydantic_core import CoreSchema, core_schema
-
+from typing_extensions import Annotated
 logger = np_logging.getLogger(__name__)
 
 
