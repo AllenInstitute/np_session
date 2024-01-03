@@ -80,6 +80,12 @@ def is_connected(host: str | Host) -> bool:
     except subprocess.TimeoutExpired:
         return False
 
+def extract_video_file_name(path: str) -> Literal['eye', 'face', 'behavior']:
+    names: dict[str, Literal['eye', 'face', 'behavior']] = {
+        "eye": "eye", "face": "face", "beh": "behavior",
+        }
+    return names[next(n for n in names if n in str(path).lower())]
+
 
 def is_lims_path(path: PathLike) -> bool:
     """
