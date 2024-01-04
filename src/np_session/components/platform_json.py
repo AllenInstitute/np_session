@@ -55,25 +55,20 @@ class _PlatformJsonDateTimeAnnotation:
         * Nothing else will pass validation
         * Serialization will always return just a str
         """
-        def validate_from_str(v: str) -> str:
-            if not v:
-                return None
-            if not isinstance(v, str) and len(v) != 14:
-                raise TypeError('14-digit string required')
-            return PlatformJsonDateTime(
-                *PlatformJsonDateTime.str2components(
-                    np_config.normalize_time(v)
-                )
-            )
-
         from_str_schema = core_schema.chain_schema(
             [
                 core_schema.str_schema(),
                 core_schema.no_info_plain_validator_function(
-                    validate_from_str
+                    PlatformJsonDateTime.validate
                 ),
             ]
         )
+
+        def serializer(instance: Union[PlatformJsonDateTime, str]) -> str:
+            if isinstance(instance, PlatformJsonDateTime):
+                return instance.isoformat()
+            
+            return instance
 
         return core_schema.json_or_python_schema(
             json_schema=from_str_schema,
@@ -83,6 +78,9 @@ class _PlatformJsonDateTimeAnnotation:
                     core_schema.is_instance_schema(PlatformJsonDateTime),
                     from_str_schema,
                 ]
+            ),
+            serialization=core_schema.plain_serializer_function_ser_schema(
+                serializer,
             ),
         )
 
@@ -100,7 +98,6 @@ class _PlatformJsonDateTimeAnnotation:
 PydanticPlatformJsonDateTime = Annotated[
     PlatformJsonDateTime,
     _PlatformJsonDateTimeAnnotation,
-    pydantic.PlainValidator(PlatformJsonDateTime.validate),
 ]
 
 
@@ -233,7 +230,8 @@ class PlatformJson(pydantic.BaseModel):
 
     # pre-experiment
     # ---------------------------------------------------------------------- #
-    workflow_start_time: Union[PydanticPlatformJsonDateTime, str] = ''
+    # workflow_start_time: Union[PydanticPlatformJsonDateTime, str] = ''
+    workflow_start_time: PydanticPlatformJsonDateTime = None
     operatorID: Optional[str] = ''
     sessionID: Optional[Union[str, int]] = ''
     mouseID: Optional[Union[str, int]] = ''
