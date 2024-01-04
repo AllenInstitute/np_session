@@ -230,8 +230,7 @@ class PlatformJson(pydantic.BaseModel):
 
     # pre-experiment
     # ---------------------------------------------------------------------- #
-    # workflow_start_time: Union[PydanticPlatformJsonDateTime, str] = ''
-    workflow_start_time: PydanticPlatformJsonDateTime = None
+    workflow_start_time: Union[PydanticPlatformJsonDateTime, str] = ''
     operatorID: Optional[str] = ''
     sessionID: Optional[Union[str, int]] = ''
     mouseID: Optional[Union[str, int]] = ''
