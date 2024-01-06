@@ -5,38 +5,20 @@ import copy
 import datetime
 import json
 import pathlib
+import re
+import typing
 import time
 from typing import Any, ClassVar, Dict, Generator, List, Optional, Union
 
 import np_config
 import np_logging
 import pydantic
-
+from pydantic_core import CoreSchema, core_schema
+from typing_extensions import Annotated
 logger = np_logging.getLogger(__name__)
 
 
 class PlatformJsonDateTime(datetime.datetime):
-    """ """
-
-    @classmethod
-    def __get_validators__(cls):
-        # one or more validators may be yielded which will be called in the
-        # order to validate the input, each validator will receive as an input
-        # the value returned from the previous validator
-        yield cls.validate
-
-    @classmethod
-    def __modify_schema__(cls, field_schema):
-        # __modify_schema__ should mutate the dict it receives in place,
-        # the returned value will be ignored
-        field_schema.update(
-            pattern='[0-9]{14}',
-            # some example postcodes
-            examples=['20220414134738'],
-        )
-
-    # def __init__(self, v) -> None:
-    #     super().__init__(*self.str2components(np_config.normalize_time(v)))
 
     @classmethod
     def validate(cls, v):
@@ -57,31 +39,99 @@ class PlatformJsonDateTime(datetime.datetime):
         return str(self)
 
 
+class _PlatformJsonDateTimeAnnotation:
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, 
+        source_type: typing.Any, 
+        handler: pydantic.GetCoreSchemaHandler
+    ) -> CoreSchema:
+        """
+        We return a pydantic_core.CoreSchema that behaves in the following ways:
+
+        * strs will be parsed as `PlatformJsonDatetime` instances
+        * `PlatformJsonDatetime` instances will be parsed as `PlatformJsonDatetime` instances without any changes
+        * Nothing else will pass validation
+        * Serialization will always return just a str
+        """
+        from_str_schema = core_schema.chain_schema(
+            [
+                core_schema.str_schema(),
+                core_schema.no_info_plain_validator_function(
+                    PlatformJsonDateTime.validate
+                ),
+            ]
+        )
+
+        def serializer(instance: Union[PlatformJsonDateTime, str]) -> str:
+            if isinstance(instance, PlatformJsonDateTime):
+                return instance.isoformat()
+            
+            return instance
+
+        return core_schema.json_or_python_schema(
+            json_schema=from_str_schema,
+            python_schema=core_schema.union_schema(
+                [
+                    # check if it's an instance first before doing any further work
+                    core_schema.is_instance_schema(PlatformJsonDateTime),
+                    from_str_schema,
+                ]
+            ),
+            serialization=core_schema.plain_serializer_function_ser_schema(
+                serializer,
+            ),
+        )
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls,
+        _core_schema: core_schema.CoreSchema,
+        handler: pydantic.GetJsonSchemaHandler
+    ) -> pydantic.JsonSchemaValue:
+        # Use the same schema that would be used for `str`
+        return handler(core_schema.str_schema())
+
+
+# We now create an `Annotated` wrapper that we'll use as the annotation for fields on `BaseModel`s, etc.
+PydanticPlatformJsonDateTime = Annotated[
+    PlatformJsonDateTime,
+    _PlatformJsonDateTimeAnnotation,
+]
+
+
 class PlatformJson(pydantic.BaseModel):
     """Writes D1 platform json for lims upload. Just requires a path (dir or dir+filename)."""
 
     # ------------------------------------------------------------------------------------- #
     # required kwargs on init (any property without a default value or leading underscore)
 
-    path: pathlib.Path
+    path: pathlib.Path = pydantic.Field(
+        exclude=True,
+    )
     'Typically the storage directory for the session. Will be modified on assignment.'
 
     # ------------------------------------------------------------------------------------- #
 
-    file_sync: bool = True
+    file_sync: bool = pydantic.Field(
+        default=True,
+        exclude=True,
+    )
 
     @contextlib.contextmanager
     def sync_disabled(self) -> Generator[None, None, None]:
         """Context manager to temporarily disable writing to file when a property is updated."""
         self.file_sync = False
         yield
-        self.file_sync = True
+        self.file_sync = True   
 
-    class Config:
-        validate_assignment = True   # coerce types on assignment
-        extra = 'allow'   # 'forbid' = properties must be defined in the model
-        fields = {'path': {'exclude': True}, 'file_sync': {'exclude': True}}
-        arbitrary_types_allowed = True
+    model_config = pydantic.ConfigDict(
+        validate_assignment=True,
+        extra='allow',
+        arbitrary_types_allowed=True,
+
+    )
 
     suffix: ClassVar[str] = '_platformD1.json'
 
@@ -116,7 +166,7 @@ class PlatformJson(pydantic.BaseModel):
 
         # if field is in non-validated list, just set it
         if name in (
-            k for k, v in self.Config.fields.items() if v.get('exclude')
+            k for k, v in self.model_fields.items() if v.exclude
         ):
             return super().__setattr__(name, value)
 
@@ -144,16 +194,16 @@ class PlatformJson(pydantic.BaseModel):
             self.platform_json_save_time = np_config.normalize_time(
                 time.time()
             )
-        self.path.write_text(self.json(indent=4))
+        self.path.write_text(self.model_dump_json(indent=4))
         logger.debug(
             '%s wrote to %s', self.__class__.__name__, self.path.as_posix()
         )
 
-    @pydantic.validator('path', pre=True)
+    @pydantic.field_validator('path', mode="before")
     def normalize_path(cls, v: Union[str, pathlib.Path]) -> pathlib.Path:
         return np_config.normalize_path(v)
 
-    @pydantic.validator('path')
+    @pydantic.field_validator('path', mode="after")
     def add_filename_to_path(cls, v: pathlib.Path) -> pathlib.Path:
         name = cls.append_suffix_to_filename(v.name)
         return v / name if v.is_dir() else v.with_name(name)
@@ -170,19 +220,17 @@ class PlatformJson(pydantic.BaseModel):
     )
 
     # auto-generated / ignored ------------------------------------------------------------- #
-    platform_json_save_time: Union[PlatformJsonDateTime, str] = ''
+    platform_json_save_time: Union[PydanticPlatformJsonDateTime, str] = ''
     'Updated on write.'
     rig_id: Optional[str] = np_config.Rig().id if np_config.RIG_IDX else None
     wfl_version: float = 0
-    platform_json_creation_time: Union[PlatformJsonDateTime, str] = ''
-    # = pydantic.Field(
-    #     default_factory=lambda: np_config.normalize_time(time.time()),
-    #     validate=PlatformJsonDateTime.validate,
-    # )
+    platform_json_creation_time: PydanticPlatformJsonDateTime = pydantic.Field(
+        default_factory=lambda: np_config.normalize_time(time.time()),
+    )
 
     # pre-experiment
     # ---------------------------------------------------------------------- #
-    workflow_start_time: Union[PlatformJsonDateTime, str] = ''
+    workflow_start_time: Union[PydanticPlatformJsonDateTime, str] = ''
     operatorID: Optional[str] = ''
     sessionID: Optional[Union[str, int]] = ''
     mouseID: Optional[Union[str, int]] = ''
@@ -208,32 +256,44 @@ class PlatformJson(pydantic.BaseModel):
     mouse_weight_pre: str = ''
     mouse_weight_pre_float: float = 0.0
 
-    HeadFrameEntryTime: Union[PlatformJsonDateTime, str] = ''
+    HeadFrameEntryTime: Union[PydanticPlatformJsonDateTime, str] = ''
     wheel_height: str = ''
-    CartridgeLowerTime: Union[PlatformJsonDateTime, str] = ''
-    ProbeInsertionStartTime: Union[PlatformJsonDateTime, str] = ''
-    ProbeInsertionCompleteTime: Union[PlatformJsonDateTime, str] = ''
+    CartridgeLowerTime: Union[PydanticPlatformJsonDateTime, str] = ''
+    ProbeInsertionStartTime: Union[PydanticPlatformJsonDateTime, str] = ''
+    ProbeInsertionCompleteTime: Union[PydanticPlatformJsonDateTime, str] = ''
     InsertionNotes: Dict[str, Dict] = pydantic.Field(default_factory=dict)
-    ExperimentStartTime: Union[PlatformJsonDateTime, str] = ''
+    ExperimentStartTime: Union[PydanticPlatformJsonDateTime, str] = ''
     stimulus_name: str = ''
     'MTrain stage (?).'
     script_name: Union[pathlib.Path, str] = ''
     'Path to stimulus script.'
 
     # post-experiment ---------------------------------------------------------------------- #
-    ExperimentCompleteTime: Union[PlatformJsonDateTime, str] = ''
+    ExperimentCompleteTime: Union[PydanticPlatformJsonDateTime, str] = ''
     ExperimentNotes: Dict[str, Dict[str, Any]] = dict(
         BleedingOnInsertion={}, BleedingOnRemoval={}
     )
-    foraging_id: str = pydantic.Field(default='', regex=_foraging_id_re)
+    foraging_id: str = pydantic.Field(default='', pattern=_foraging_id_re)
     foraging_id_list: List[str] = pydantic.Field(
-        default_factory=lambda: [''], regex=_foraging_id_re
+        default_factory=lambda: [''],
     )
-    HeadFrameExitTime: Union[PlatformJsonDateTime, str] = ''
+    # @pydantic.field_validator('foraging_id_list')
+    # @classmethod
+    # def ids_in_foraging_id_list_match_pattern(
+    #         cls, v: List[str]) -> List[str]:
+    #     for foraging_id in v:
+    #         if re.match(cls._foraging_id_re, foraging_id) is None:
+    #             raise ValueError(
+    #                 'Id failed pattern check. id=%s, pattern=%s' % 
+    #                 (foraging_id, cls._foraging_id_re, )
+    #             )
+    #     return v
+
+    HeadFrameExitTime: Union[PydanticPlatformJsonDateTime, str] = ''
     mouse_weight_post: str = ''
     water_supplement: float = 0.0
-    manifest_creation_time: Union[PlatformJsonDateTime, str] = ''
-    workflow_complete_time: Union[PlatformJsonDateTime, str] = ''
+    manifest_creation_time: Union[PydanticPlatformJsonDateTime, str] = ''
+    workflow_complete_time: Union[PydanticPlatformJsonDateTime, str] = ''
 
     manipulator_coordinates: Dict[str, Dict[Any, Any]] = pydantic.Field(
         default_factory=dict

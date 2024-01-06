@@ -21,7 +21,7 @@ dependencies = [
     "requests>=2",
     "backports.cached-property",
     "firebase-admin>=6.1.0",
-    "pydantic<2.0.0",
+    "pydantic>=2.0.0",
     "redis<=4.1.4", # redis>=4.1.4 adds async-timeout>=4.0: AllenSDK pins aiohttp ver with async-timeout < 4.0
 ]
 
@@ -47,8 +47,8 @@ dev = [
 # usage: pdm run <script> [args]
 ruff = "ruff check src --fix-only"
 blue = "blue src"
-pytest = "pytest --cov"
-prebuild = {composite = ["blue", "ruff", "pytest"]}
+test = "pytest --cov"
+prebuild = {composite = ["blue", "ruff", "test"]}
 bump = "bump -p pyproject.toml" # defaults to patch; `pdm run bump -m` to bump minor
 build = {composite = ["prebuild", "pdm build"]}
 dry-run = {composite = ["prebuild", "pdm build", "pdm publish --no-build --repository https://test.pypi.org/simple"]}
