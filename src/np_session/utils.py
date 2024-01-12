@@ -42,8 +42,11 @@ REPLACED_COMP_ID: dict[str, tuple[datetime.date, str]] = {
     'NP.0-Stim': (datetime.date(2023, 2, 7), 'W10DTSM112721'),
     'NP.1-Stim': (datetime.date(2023, 1, 19), 'W10DTSM118294'),
     'NP.2-Stim': (datetime.date(2023, 3, 15), 'W10DTSM118295'),
+    'NP.3-Stim': (datetime.date(2023, 4, 23), 'W10DTSM118296'),
+    # 'NP.2-Mon': (datetime.date(2023, ?, ?), '?'), # unknown, but also no production experiments before replacement
+    'NP.3-Mon': (datetime.date(2024, 1, 4), 'W10DTSM118281'),
+    'NP.3-Acq': (datetime.date(2024, 1, 4), 'W10DT05516'),
 }
-
 
 def old_hostname(comp_id: str, date: datetime.date) -> str | None:
     """Return the hostname for a computer that was replaced, if `date` predates the switchover.
