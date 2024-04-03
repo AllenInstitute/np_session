@@ -37,6 +37,8 @@ RE_PROBES = re.compile('(?<=_probe)_?(([A-F]+)|([0-5]))')
 
 REPLACED_COMP_ID: dict[str, tuple[datetime.date, str]] = {
     'NP.0-Acq': (datetime.date(2022, 10, 18), 'W10DT05515'),
+    'NP.0-Sync': (datetime.date(2022, 10, 18), 'W10DTSM112719'),
+    'NP.1-Sync': (datetime.date(2022, 10, 18), 'w10dtsm18306'),
     'NP.1-Acq': (datetime.date(2022, 10, 27), 'W10DT05501'),
     'NP.2-Acq': (datetime.date(2022, 7, 14), 'W10DT05517'),
     'NP.0-Stim': (datetime.date(2023, 2, 7), 'W10DTSM112721'),
