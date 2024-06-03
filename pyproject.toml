@@ -4,6 +4,7 @@ version = "0.6.44"
 description = "Tools for accessing data, metadata, and jobs related to ecephys and behavior sessions for the Mindscope Neuropixels team."
 authors = [
     { name = "Ben Hardcastle", email = "ben.hardcastle@alleninstitute.org" },
+    { name = "Arjun Sridhar", email = "arjun.sridhar@alleninstitute.org" },
     { name = "Chris Mochizuki", email = "chrism@alleninstitute.org" },
 ]
 classifiers = [
