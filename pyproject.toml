@@ -15,7 +15,7 @@ requires-python = ">=3.7"
 readme = "README.md"
 dependencies = [
     "np_logging>=0.3.8",
-    "np_config>=0.4.17",
+    "np_config>=0.4.32",
     "np-tools>=0.1.6",
     "typing-extensions>=4",
     "psycopg2-binary>=2",

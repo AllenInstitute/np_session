@@ -222,7 +222,7 @@ class PlatformJson(pydantic.BaseModel):
     # auto-generated / ignored ------------------------------------------------------------- #
     platform_json_save_time: Union[PydanticPlatformJsonDateTime, str] = ''
     'Updated on write.'
-    rig_id: Optional[str] = np_config.Rig().id if np_config.RIG_IDX else None
+    rig_id: Optional[str] = np_config.Rig().id if np_config.get_rig_idx() else None
     wfl_version: float = 0
     platform_json_creation_time: PydanticPlatformJsonDateTime = pydantic.Field(
         default_factory=lambda: np_config.normalize_time(time.time()),
