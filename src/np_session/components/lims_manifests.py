@@ -18,7 +18,7 @@ logger = np_logging.getLogger(__name__)
 
 SESSION_TYPES = ('D0', 'D1', 'D2', 'hab')
 
-@functools.cache
+@functools.lru_cache(maxsize=None)
 def get_manifests() -> dict[str, dict]:
     return np_config.from_zk('projects/np_session/manifests')
 
