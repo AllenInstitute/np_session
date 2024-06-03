@@ -1,6 +1,7 @@
 from __future__ import annotations
 import contextlib
 
+import functools
 import pathlib
 from typing import Optional
 
@@ -16,7 +17,10 @@ import np_session.components.info
 logger = np_logging.getLogger(__name__)
 
 SESSION_TYPES = ('D0', 'D1', 'D2', 'hab')
-MANIFESTS: dict[str, dict] = np_config.from_zk('projects/np_session/manifests')
+
+@functools.cache
+def get_manifests() -> dict[str, dict]:
+    return np_config.from_zk('projects/np_session/manifests')
 
 
 class Manifest:
@@ -131,7 +135,7 @@ class Manifest:
         for probe in (
             'ABCDEF' if self.session is None else self.session.probes_inserted
         ):
-            for name, glob in MANIFESTS['_name_glob']['sorted_data'].items():
+            for name, glob in get_manifests()['_name_glob']['sorted_data'].items():
                 probe_glob = f'*_probe{probe}{glob}'
                 self._globs_sorted_data.append(probe_glob)
                 self._names_sorted_data.append(f'{name}_probe{probe}')
@@ -223,12 +227,12 @@ class Manifest:
     def fetch_from_zk(self) -> None:
         """Fetch names, file globs and file/dir types from zookeeper."""
         project = 'default' if self.project is None else self.project
-        default = MANIFESTS[self.session_type]['default']
-        if project not in MANIFESTS[self.session_type]:
+        default = get_manifests()[self.session_type]['default']
+        if project not in get_manifests()[self.session_type]:
             logger.debug(
                 f'No manifest found for {project} in {self.session_type} manifests on ZK - using default.'
             )
-        name_glob: dict[str, str] = MANIFESTS[self.session_type].get(
+        name_glob: dict[str, str] = get_manifests()[self.session_type].get(
             project, default
         )
 
@@ -236,7 +240,7 @@ class Manifest:
             name_glob.values()
         )
 
-        name_type: dict[str, str] = MANIFESTS['_name_type']
+        name_type: dict[str, str] = get_manifests()['_name_type']
         self.types = tuple(name_type[_] for _ in self.names)
 
     def __repr__(self) -> str:
