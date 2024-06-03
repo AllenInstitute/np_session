@@ -10,10 +10,6 @@ INCOMING_ROOT = pathlib.Path(
     '//allen/programs/braintv/production/incoming/neuralcoding'
 )
 
-DATAJOINT_ROOT = pathlib.Path(
-    np_config.from_zk("/projects/np_datajoint/defaults/configuration")["sorting"]["local_inbox"]
-    )
-
 TEMPLATES_ROOT = pathlib.Path(
     '//allen/programs/mindscope/workgroups/dynamicrouting/ben/npexp_data_manifests'
 )
