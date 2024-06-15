@@ -212,7 +212,7 @@ class Dye(WithState):
     1
     """
 
-    descriptions: ClassVar = ('CM-DiI 100%', 'DiO')
+    descriptions: ClassVar = ('CM-DiI 100%', 'DiO', 'DiD')
 
     def __init__(self, dye_id: int) -> None:
         self.id = int(dye_id)
@@ -227,7 +227,7 @@ class Dye(WithState):
 
     @property
     def description(self) -> Literal['CM-DiI` 100%', 'DiO']:
-        return self.state.setdefault('description', self.descriptions[0])
+        return self.state.setdefault('description', self.descriptions[self.id])
 
     @description.setter
     def description(self, value: Literal['CM-DiI 100%', 'DiO']) -> None:
