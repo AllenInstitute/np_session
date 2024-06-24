@@ -176,7 +176,17 @@ class LIMS2MouseInfo(LIMS2InfoBaseClass):
             if exp['workflow_state'] != 'failed':
                 return exp['id']
         return None
-
+    
+    @property
+    def failed_isi_id(self) -> int | None:
+        """ID of the mouse's most recent ISI experiment marked `failed`."""
+        exps: list = self.isi_info['isi_experiments']
+        exps.sort(key=lambda x: x['id'], reverse=True)
+        for exp in exps:
+            if exp['workflow_state'] == 'failed':
+                return exp['id']
+        return None
+    
     @property
     def isi_targets(self) -> tuple[dict[Literal['x', 'y'], float], ...] | None:
         """List of targets in image space for the mouse's most recent ISI experiment not marked `failed`."""
@@ -295,6 +305,17 @@ class LIMS2BehaviorSessionInfo(LIMS2SessionInfo):
 
 # end of classes ----------------------------------------------------------------------- #
 
+def get_isi_id(mouse: str | int | LIMS2MouseInfo) -> str:
+    if not isinstance(mouse, LIMS2MouseInfo):
+        mouse = LIMS2MouseInfo(mouse)
+    if mouse.isi_id:
+        return mouse.isi_id
+    if mouse.failed_isi_id:
+        return mouse.failed_isi_id
+    logger.warning(
+        f'No ISI experiment found for {mouse.np_id}, using 366122 ISI map as a placeholder'
+    )
+    return '659499873'
 
 def generate_ephys_session(
     mouse: str | int | LIMS2MouseInfo,
@@ -315,7 +336,7 @@ def generate_ephys_session(
     request_json = {
         'specimen_id': mouse.lims_id,
         'project_id': mouse.project_id,
-        'isi_experiment_id': mouse.isi_id,
+        'isi_experiment_id': get_isi_id(mouse),
         'name': f'{timestamp.strftime("%Y%m%d%H%M%S")}_{user.lims_id}',
         'operator_id': user.lims_id,
     }
@@ -343,7 +364,7 @@ def generate_hab_session(
     request_json = {
         'specimen_id': mouse.lims_id,
         'project_id': mouse.project_id,
-        'isi_experiment_id': mouse.isi_id,
+        'isi_experiment_id': get_isi_id(mouse),
         'name': f'HAB_{timestamp}_{user.lims_id}',
         'operator_id': user.lims_id,
     }
