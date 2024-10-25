@@ -47,13 +47,13 @@ def request(url):
 
 
 donor_info = request(
-    'http://lims2/donors/info/details.json?external_donor_name={}'
+    'https://lims2.corp.alleninstitute.org/donors/info/details.json?external_donor_name={}'
 )
-user_info = request('http://lims2/users.json?login={}')
-ecephys_info = request('http://lims2/ecephys_sessions.json?id={}')
-behavior_info = request('http://lims2/behavior_sessions.json?id={}')
-isi_info = request('http://lims2/specimens/isi_experiment_details/{}.json')
-project_info = request('http://lims2/projects.json?code={}')
+user_info = request('https://lims2.corp.alleninstitute.org/users.json?login={}')
+ecephys_info = request('https://lims2.corp.alleninstitute.org/ecephys_sessions.json?id={}')
+behavior_info = request('https://lims2.corp.alleninstitute.org/behavior_sessions.json?id={}')
+isi_info = request('https://lims2.corp.alleninstitute.org/specimens/isi_experiment_details/{}.json')
+project_info = request('https://lims2.corp.alleninstitute.org/projects.json?code={}')
 
 
 class LIMS2InfoBaseClass(collections.UserDict, abc.ABC):
@@ -340,7 +340,7 @@ def generate_ephys_session(
         'name': f'{timestamp.strftime("%Y%m%d%H%M%S")}_{user.lims_id}',
         'operator_id': user.lims_id,
     }
-    url = 'http://lims2/observatory/ecephys_session/create'
+    url = 'https://lims2.corp.alleninstitute.org/observatory/ecephys_session/create'
     response = requests.post(url, json=request_json)
     decoded_dict = json.loads(response.content.decode('utf-8'))
     new_session_id = decoded_dict['id']
@@ -368,7 +368,7 @@ def generate_hab_session(
         'name': f'HAB_{timestamp}_{user.lims_id}',
         'operator_id': user.lims_id,
     }
-    url = 'http://lims2/observatory/ecephys_session/create'
+    url = 'https://lims2.corp.alleninstitute.org/observatory/ecephys_session/create'
     response = requests.post(url, json=request_json)
     decoded_dict = json.loads(response.content.decode('utf-8'))
     new_session_id = decoded_dict['id']

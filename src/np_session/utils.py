@@ -175,7 +175,7 @@ def lims_json_content(lims_id: int | str) -> dict | None:
     if not is_connected('lims2'):
         raise ConnectionError('Could not connect to lims')
     for session_type in ['ecephys_sessions', 'behavior_sessions']:
-        response = requests.get(f'http://lims2/{session_type}/{lims_id}.json?')
+        response = requests.get(f'https://lims2.corp.alleninstitute.org/{session_type}/{lims_id}.json?')
         if response.status_code == 200:
             return response.json()
     logger.warning(
